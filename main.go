@@ -19,7 +19,7 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:             "GitSwitch v1.8.0",
+		Title:             "GitSwitch v1.0.0",
 		Width:             1200,
 		Height:            860,
 		MinWidth:          960,

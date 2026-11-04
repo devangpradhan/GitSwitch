@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GitSwitch v1.8.0 - Precision Git & SSH Identity Switcher</title>
+  <title>GitSwitch v1.0.0 - Precision Git & SSH Identity Switcher</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -115,7 +115,7 @@
           </div>
           <span class="text-sm font-semibold tracking-tight text-white flex items-center gap-1.5 font-sans">
             GitSwitch
-            <span class="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-[#162433] text-[#3fb950] border border-[#233547]">v1.8.0</span>
+            <span class="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-[#162433] text-[#3fb950] border border-[#233547]">v1.0.0</span>
           </span>
         </div>
 
@@ -464,7 +464,7 @@
           <div>
             <h2 class="text-sm md:text-base font-semibold tracking-tight text-white flex items-center gap-2">
               Initialize New GitHub Identity
-              <span class="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-[#3fb950]/15 text-[#3fb950] border border-[#3fb950]/30">v1.8.0</span>
+              <span class="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-[#3fb950]/15 text-[#3fb950] border border-[#3fb950]/30">v1.0.0</span>
             </h2>
             <p class="text-xs text-slate-400 font-mono mt-0.5">Configures gitconfig scope, SSH agent bindings, & automatic folder dispatch.</p>
           </div>
@@ -1294,7 +1294,7 @@
       if (tab === 'gitconfig') {
         let content = `# GitSwitch Managed Global Active Identity\n[user]\n\tname = ${activeP.username}\n\temail = ${activeP.email}\n`;
         if (activeP.signing_key) content += `\tsigningkey = ${activeP.signing_key}\n`;
-        content += `[core]\n\tsshCommand = ssh -i ~/.ssh/${activeP.ssh_key}\n\n# >>> GitSwitch IncludeIf Hooks (v1.8.0) >>>\n`;
+        content += `[core]\n\tsshCommand = ssh -i ~/.ssh/${activeP.ssh_key}\n\n# >>> GitSwitch IncludeIf Hooks (v1.0.0) >>>\n`;
         state.profiles.forEach(p => {
           (p.scope_paths || []).forEach(sc => {
             content += `[includeIf "gitdir:${sc.replace(/\*$/, '')}"]\n\tpath = ~/.gitconfig-${p.id}\n`;
@@ -1303,7 +1303,7 @@
         content += `# <<< GitSwitch IncludeIf Hooks <<<\n`;
         disp.textContent = content;
       } else {
-        let content = `# GitSwitch Managed Block - Start (v1.8.0)\nHost github.com\n    HostName github.com\n    User git\n    IdentityFile ~/.ssh/${activeP.ssh_key}\n    IdentitiesOnly yes\n\n`;
+        let content = `# GitSwitch Managed Block - Start (v1.0.0)\nHost github.com\n    HostName github.com\n    User git\n    IdentityFile ~/.ssh/${activeP.ssh_key}\n    IdentitiesOnly yes\n\n`;
         state.profiles.forEach(p => {
           content += `Host github.com-${p.id}\n    HostName github.com\n    User git\n    IdentityFile ~/.ssh/${p.ssh_key}\n    IdentitiesOnly yes\n\n`;
         });

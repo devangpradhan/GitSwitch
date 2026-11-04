@@ -102,7 +102,7 @@
 >
   <svelte:fragment slot="badge">
     <span class="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-[#3fb950]/15 text-[#3fb950] border border-[#3fb950]/30">
-      v1.8.0
+      v1.0.0
     </span>
   </svelte:fragment>
 

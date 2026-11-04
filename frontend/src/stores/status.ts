@@ -3,7 +3,7 @@ import type { AppStatus } from '../types';
 import { GetStatus } from '../wailsjs/go/main/App';
 
 export const appStatus = writable<AppStatus>({
-  version: '1.8.0',
+  version: '1.0.0',
   pid: 49201,
   daemon_mode: 'STRICT_DISPATCH',
   daemon_enabled: true,

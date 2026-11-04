@@ -13,7 +13,7 @@
   "info": {
     "companyName": "GitSwitch",
     "productName": "GitSwitch",
-    "productVersion": "1.8.0",
+    "productVersion": "1.0.0",
     "copyright": "Copyright 2026",
     "comments": "High-performance Git identity and includeIf manager"
   }

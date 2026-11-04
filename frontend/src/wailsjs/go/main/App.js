@@ -355,7 +355,7 @@ export function GetStatus() {
   const keys = getStored('keys', defaultKeys);
 
   return Promise.resolve({
-    version: '1.8.0',
+    version: '1.0.0',
     pid: 49201,
     active_profile: active,
     daemon_mode: 'STRICT_DISPATCH',
@@ -383,7 +383,7 @@ export function GetConfigFiles() {
   if (active.signing_key) {
     gitConfig += `\tsigningkey = ${active.signing_key}\n`;
   }
-  gitConfig += `[core]\n\tsshCommand = ssh -i ~/.ssh/${active.ssh_key}\n\n# >>> GitSwitch IncludeIf Hooks (v1.8.0) >>>\n`;
+  gitConfig += `[core]\n\tsshCommand = ssh -i ~/.ssh/${active.ssh_key}\n\n# >>> GitSwitch IncludeIf Hooks (v1.0.0) >>>\n`;
   for (const p of profiles) {
     for (const scope of p.scope_paths || []) {
       gitConfig += `[includeIf "gitdir:${scope.replace(/\*$/, '')}"]\n\tpath = ~/.gitconfig-${p.id}\n`;
@@ -391,7 +391,7 @@ export function GetConfigFiles() {
   }
   gitConfig += `# <<< GitSwitch IncludeIf Hooks <<<\n`;
 
-  let sshConfig = `# GitSwitch Managed Block - Start (v1.8.0)\nHost github.com\n    HostName github.com\n    User git\n    IdentityFile ~/.ssh/${active.ssh_key}\n    IdentitiesOnly yes\n\n`;
+  let sshConfig = `# GitSwitch Managed Block - Start (v1.0.0)\nHost github.com\n    HostName github.com\n    User git\n    IdentityFile ~/.ssh/${active.ssh_key}\n    IdentitiesOnly yes\n\n`;
   for (const p of profiles) {
     sshConfig += `Host github.com-${p.id}\n    HostName github.com\n    User git\n    IdentityFile ~/.ssh/${p.ssh_key}\n    IdentitiesOnly yes\n\n`;
   }

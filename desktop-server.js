@@ -58,7 +58,7 @@ const server = http.createServer((req, res) => {
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`\n======================================================`);
-  console.log(`  ⚡ GitSwitch v1.8.0 - Desktop Daemon Active`);
+  console.log(`  ⚡ GitSwitch v1.0.0 - Desktop Daemon Active`);
   console.log(`  Local Endpoint: http://127.0.0.1:${PORT}`);
   console.log(`  Host Config:    ~/.gitconfig | ~/.ssh/config`);
   console.log(`======================================================\n`);

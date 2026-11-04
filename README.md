@@ -1,4 +1,4 @@
-# GitSwitch (v1.8.0) ⚡
+# GitSwitch (v1.0.0) ⚡
 
 > **Precision Offline-First Desktop Utility for Managing Multiple GitHub Accounts, Cryptographic SSH Identities, and Automatic Folder-Based Git Switching (`includeIf` Hooks)**
 

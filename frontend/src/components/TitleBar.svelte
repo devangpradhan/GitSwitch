@@ -41,7 +41,7 @@
       </div>
       <span class="text-sm font-semibold tracking-tight text-white flex items-center gap-1.5 font-sans">
         GitSwitch
-        <span class="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-[#162433] text-[#3fb950] border border-[#233547]">v1.8.0</span>
+        <span class="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-[#162433] text-[#3fb950] border border-[#233547]">v1.0.0</span>
       </span>
     </div>
 
