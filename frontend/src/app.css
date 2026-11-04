@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  body {
+    background: radial-gradient(circle at 50% 20%, #111a24 0%, #080c10 70%, #05080b 100%);
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    margin: 0;
+    padding: 0;
+  }
+}
+
+/* Custom High-Craft Metallic Dial Textures */
+.dial-outer-track {
+  box-shadow: 
+    inset 0 2px 10px rgba(0, 0, 0, 0.9),
+    0 1px 0 rgba(255, 255, 255, 0.08),
+    0 12px 35px -6px rgba(0, 0, 0, 0.8);
+}
+
+.dial-cap {
+  background: radial-gradient(circle at 35% 30%, #1e2836 0%, #131a24 50%, #0b1017 100%);
+  box-shadow: 
+    0 8px 24px rgba(0,0,0,0.7),
+    inset 0 1px 1px rgba(255,255,255,0.25),
+    inset 0 -2px 6px rgba(0,0,0,0.9);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.knurled-edge {
+  background: repeating-conic-gradient(
+    from 0deg,
+    #16202c 0deg 3.5deg,
+    #0d141d 3.5deg 7deg
+  );
+}
+
+.active-glow-neon {
+  box-shadow: 0 0 25px -2px rgba(63, 185, 80, 0.55), 0 0 60px -8px rgba(63, 185, 80, 0.25);
+}
+
+.active-glow-indigo {
+  box-shadow: 0 0 25px -2px rgba(99, 102, 241, 0.55), 0 0 60px -8px rgba(99, 102, 241, 0.25);
+}
+
+.dial-needle {
+  box-shadow: 0 0 10px #3fb950, 0 0 18px rgba(63, 185, 80, 0.8);
+}
+
+.tick-point {
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Custom Slim Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #080d14;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1c2838;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #2b3e56;
+}
+
+/* Scanline and Subtle Terminal Grid Background */
+.scanlines {
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+  background-size: 100% 3px, 6px 100%;
+}

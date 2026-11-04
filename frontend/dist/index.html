@@ -1,0 +1,1330 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitSwitch v1.8.0 - Precision Git & SSH Identity Switcher</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Geist:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Geist', 'Inter', 'sans-serif'],
+            mono: ['"JetBrains Mono"', '"Fira Code"', 'monospace'],
+          },
+          colors: {
+            surface: {
+              DEFAULT: '#0b141c',
+              dim: '#0b141c',
+              bright: '#313a43',
+              container: '#182028',
+              lowest: '#060f16',
+              low: '#141c24',
+              high: '#222b33',
+              highest: '#2d363e',
+            },
+            primary: {
+              DEFAULT: '#3fb950',
+              hover: '#2ea043',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background: radial-gradient(circle at 50% 20%, #111a24 0%, #080c10 70%, #05080b 100%);
+      font-family: 'Geist', sans-serif;
+    }
+    .dial-outer-track {
+      box-shadow: 
+        inset 0 2px 10px rgba(0, 0, 0, 0.9),
+        0 1px 0 rgba(255, 255, 255, 0.08),
+        0 12px 35px -6px rgba(0, 0, 0, 0.8);
+    }
+    .dial-cap {
+      background: radial-gradient(circle at 35% 30%, #1e2836 0%, #131a24 50%, #0b1017 100%);
+      box-shadow: 
+        0 8px 24px rgba(0,0,0,0.7),
+        inset 0 1px 1px rgba(255,255,255,0.25),
+        inset 0 -2px 6px rgba(0,0,0,0.9);
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .knurled-edge {
+      background: repeating-conic-gradient(
+        from 0deg,
+        #16202c 0deg 3.5deg,
+        #0d141d 3.5deg 7deg
+      );
+    }
+    .dial-needle {
+      box-shadow: 0 0 10px #3fb950, 0 0 18px rgba(63, 185, 80, 0.8);
+    }
+    .tick-point {
+      transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #090e15;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e2c3c;
+      border-radius: 3px;
+    }
+    @keyframes modal-appear {
+      0% { opacity: 0; transform: scale(0.97) translateY(8px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .modal-enter {
+      animation: modal-appear 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-100 flex flex-col justify-between antialiased selection:bg-[#3fb950]/30 selection:text-white select-none">
+
+  <!-- Desktop App Window Shell -->
+  <div class="w-full flex-1 flex flex-col min-h-screen">
+    
+    <!-- Titlebar & Navigation -->
+    <header class="h-14 bg-[#0a1017] border-b border-[#182330] px-5 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-4">
+        <!-- macOS Style Window Bullets -->
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 rounded-full bg-[#ff5f56] opacity-80 hover:opacity-100 transition-opacity cursor-pointer border border-[#e0443e]"></div>
+          <div class="w-3 h-3 rounded-full bg-[#ffbd2e] opacity-80 hover:opacity-100 transition-opacity cursor-pointer border border-[#dea123]"></div>
+          <div class="w-3 h-3 rounded-full bg-[#27c93f] opacity-80 hover:opacity-100 transition-opacity cursor-pointer border border-[#1aab29]"></div>
+        </div>
+
+        <div class="h-4 w-[1px] bg-[#1d2a3a]"></div>
+
+        <!-- App Brand -->
+        <div class="flex items-center gap-2.5">
+          <div class="w-6 h-6 rounded-lg bg-gradient-to-br from-[#3fb950] to-[#2ea043] flex items-center justify-center shadow-[0_0_12px_rgba(63,185,80,0.4)]">
+            <svg class="w-3.5 h-3.5 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
+            </svg>
+          </div>
+          <span class="text-sm font-semibold tracking-tight text-white flex items-center gap-1.5 font-sans">
+            GitSwitch
+            <span class="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-[#162433] text-[#3fb950] border border-[#233547]">v1.8.0</span>
+          </span>
+        </div>
+
+        <!-- Daemon Pulse Indicator -->
+        <div class="hidden lg:flex items-center gap-2 pl-3">
+          <span class="relative flex h-2 w-2">
+            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#3fb950] opacity-75"></span>
+            <span class="relative inline-flex rounded-full h-2 w-2 bg-[#3fb950]"></span>
+          </span>
+          <span class="text-[11px] font-mono text-emerald-400 font-medium" id="daemonStatusText">DAEMON: STRICT_DISPATCH (0.18ms)</span>
+        </div>
+      </div>
+
+      <!-- Center / Tabs: Dashboard, Profiles, Folder Mappings, SSH Keys -->
+      <nav class="flex items-center bg-[#070b10] p-1 rounded-xl border border-[#1b2636]" id="mainNav">
+        <button onclick="switchTab('dashboard')" class="nav-tab flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium bg-[#14202d] text-[#3fb950] shadow-sm border border-[#223348] transition-all" data-tab="dashboard">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"></path></svg>
+          <span>Dashboard</span>
+          <span class="tab-dot w-1.5 h-1.5 rounded-full bg-[#3fb950]"></span>
+        </button>
+        <button onclick="switchTab('profiles')" class="nav-tab flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition-colors" data-tab="profiles">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7 7z"></path></svg>
+          <span>Profiles</span>
+          <span class="tab-dot hidden w-1.5 h-1.5 rounded-full bg-[#3fb950]"></span>
+        </button>
+        <button onclick="switchTab('folder-mappings')" class="nav-tab flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition-colors" data-tab="folder-mappings">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+          <span>Folder Mappings</span>
+          <span class="tab-dot hidden w-1.5 h-1.5 rounded-full bg-[#3fb950]"></span>
+        </button>
+        <button onclick="switchTab('ssh-keys')" class="nav-tab flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-medium text-slate-400 hover:text-slate-200 transition-colors" data-tab="ssh-keys">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+          <span>SSH Keys</span>
+          <span class="tab-dot hidden w-1.5 h-1.5 rounded-full bg-[#3fb950]"></span>
+        </button>
+      </nav>
+
+      <!-- Right: Global Shortcuts & Config Inspector -->
+      <div class="flex items-center gap-3">
+        <button onclick="openAddModal()" class="flex items-center gap-1.5 text-xs font-mono font-medium bg-[#131c26] hover:bg-[#1a2636] border border-[#233346] px-2.5 py-1.5 rounded-lg text-slate-300 hover:text-white transition-colors">
+          <span class="text-[#3fb950] font-bold text-sm">+</span>
+          <span>Add</span>
+          <kbd class="text-[10px] font-mono text-slate-500 bg-[#0c1219] px-1 py-0.5 rounded border border-[#1e2a38]">⌘N</kbd>
+        </button>
+        <button onclick="openConfigModal()" class="w-7 h-7 rounded-lg bg-[#14202d] border border-[#25374b] flex items-center justify-center text-slate-300 hover:text-white cursor-pointer transition-colors" title="Inspect System Config Files (⌘,)">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Dynamic Workspace -->
+    <main class="flex-1 p-4 md:p-8 flex flex-col items-center justify-start relative overflow-y-auto">
+      
+      <!-- Subtle Background Grid -->
+      <div class="absolute inset-0 pointer-events-none opacity-20">
+        <svg class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#233547" stroke-width="1"></path>
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#grid)"></rect>
+        </svg>
+      </div>
+
+      <!-- TAB 1: DASHBOARD (ROTARY DIAL UI) -->
+      <div id="tab-dashboard" class="tab-view w-full flex flex-col items-center justify-between gap-6 relative z-10">
+        <!-- Top Mini Telemetry Header -->
+        <div class="w-full max-w-[840px] flex items-center justify-between text-xs">
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#0d141e] border border-[#1b2636] font-mono text-[11px] text-slate-300">
+              <span class="text-slate-500">HOOK:</span>
+              <span class="text-[#3fb950] font-medium">includeIf.gitdir</span>
+              <span class="text-slate-600">|</span>
+              <span class="text-indigo-400">ACTIVE</span>
+            </div>
+            <div class="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#0d141e] border border-[#1b2636] font-mono text-[11px] text-slate-400">
+              <span class="text-slate-500">AGENT PID:</span>
+              <span class="text-slate-200">49201</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 font-mono text-[11px] text-slate-400">
+            <span class="inline-block w-2 h-2 rounded-full bg-[#3fb950] animate-pulse"></span>
+            <span>ROTATE OR CLICK PROFILE TICK TO SWITCH</span>
+          </div>
+        </div>
+
+        <!-- CENTER ROTARY KNOB DASHBOARD COMPONENT -->
+        <div class="relative my-4 flex flex-col items-center justify-center z-10 w-full max-w-[580px]">
+          <div class="relative w-[340px] h-[340px] sm:w-[380px] sm:h-[380px] flex items-center justify-center" id="dialStage">
+            
+            <!-- Gauge Ticks SVG -->
+            <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 400 400">
+              <circle cx="200" cy="200" r="172" fill="none" stroke="#162230" stroke-width="2.5" stroke-dasharray="4 6"></circle>
+              <circle cx="200" cy="200" r="150" fill="none" stroke="#0e1622" stroke-width="12"></circle>
+              <path d="M 94 284 A 150 150 0 1 1 306 284" fill="none" stroke="#1c2a3a" stroke-width="4" stroke-linecap="round"></path>
+              <g opacity="0.6">
+                <line x1="200" y1="36" x2="200" y2="46" stroke="#2a3d52" stroke-width="2" transform="rotate(-120 200 200)"></line>
+                <line x1="200" y1="38" x2="200" y2="44" stroke="#1c2c3d" stroke-width="1.5" transform="rotate(-100 200 200)"></line>
+                <line x1="200" y1="38" x2="200" y2="44" stroke="#1c2c3d" stroke-width="1.5" transform="rotate(-80 200 200)"></line>
+                <line x1="200" y1="38" x2="200" y2="44" stroke="#1c2c3d" stroke-width="1.5" transform="rotate(-60 200 200)"></line>
+                <line x1="200" y1="36" x2="200" y2="46" stroke="#2a3d52" stroke-width="2" transform="rotate(-40 200 200)"></line>
+                <line x1="200" y1="38" x2="200" y2="44" stroke="#1c2c3d" stroke-width="1.5" transform="rotate(-20 200 200)"></line>
+                <line x1="200" y1="36" x2="200" y2="47" stroke="#3fb950" stroke-width="2.5" transform="rotate(0 200 200)"></line>
+                <line x1="200" y1="38" x2="200" y2="44" stroke="#1c2c3d" stroke-width="1.5" transform="rotate(20 200 200)"></line>
+                <line x1="200" y1="36" x2="200" y2="46" stroke="#2a3d52" stroke-width="2" transform="rotate(40 200 200)"></line>
+                <line x1="200" y1="38" x2="200" y2="44" stroke="#1c2c3d" stroke-width="1.5" transform="rotate(60 200 200)"></line>
+                <line x1="200" y1="38" x2="200" y2="44" stroke="#1c2c3d" stroke-width="1.5" transform="rotate(80 200 200)"></line>
+                <line x1="200" y1="38" x2="200" y2="44" stroke="#1c2c3d" stroke-width="1.5" transform="rotate(100 200 200)"></line>
+                <line x1="200" y1="36" x2="200" y2="46" stroke="#2a3d52" stroke-width="2" transform="rotate(120 200 200)"></line>
+              </g>
+            </svg>
+
+            <!-- Circumferential Profile Ticks Container -->
+            <div id="dialTicksContainer" class="absolute inset-0 pointer-events-auto"></div>
+
+            <!-- Rotary Knob Chassis -->
+            <div class="relative w-[210px] h-[210px] sm:w-[230px] sm:h-[230px] rounded-full bg-[#0b1118] border-4 border-[#162230] dial-outer-track p-3 flex items-center justify-center">
+              <div class="w-full h-full rounded-full knurled-edge p-2.5 shadow-2xl flex items-center justify-center">
+                <!-- Dial Cap -->
+                <div id="rotaryDial" class="dial-cap w-full h-full rounded-full relative flex items-center justify-center cursor-grab active:cursor-grabbing transform -rotate-[120deg]">
+                  <!-- Needle Notch -->
+                  <div id="dialNeedle" class="absolute top-2 w-1.5 h-6 rounded-full bg-[#3fb950] dial-needle transition-all"></div>
+                  <!-- Inner Bezel -->
+                  <div class="w-[124px] h-[124px] sm:w-[136px] sm:h-[136px] rounded-full bg-[#0a0f16] border border-[#213042] flex items-center justify-center relative shadow-inner">
+                    <div id="iconGlowAura" class="absolute inset-4 rounded-full bg-[#3fb950]/20 blur-md transition-all"></div>
+                    <!-- Central GitHub Icon Emblem -->
+                    <div class="relative z-10 flex flex-col items-center justify-center pointer-events-none" id="centerIconWrapper">
+                      <svg class="w-10 h-10 sm:w-11 sm:h-11 text-white drop-shadow-[0_2px_12px_rgba(255,255,255,0.25)] transition-transform hover:scale-105" viewBox="0 0 24 24" fill="currentColor">
+                        <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"></path>
+                      </svg>
+                      <span id="centerProfileLabel" class="text-[9px] font-mono tracking-widest text-[#3fb950] font-bold mt-1 uppercase">WORK</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- BOTTOM ACTIVE PROFILE TERMINAL PREVIEW CARD -->
+        <div id="activeProfileCardContainer" class="w-full max-w-[840px]"></div>
+      </div>
+
+      <!-- TAB 2: PROFILES MANAGEMENT MATRIX -->
+      <div id="tab-profiles" class="tab-view hidden w-full max-w-5xl">
+        <div class="flex flex-col gap-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#0d141e] px-5 py-3 rounded-xl border border-[#182330]">
+            <div class="flex items-center gap-3 font-mono text-xs">
+              <span class="text-slate-500 uppercase tracking-wider text-[11px]">Identities Matrix</span>
+              <span class="text-slate-600">/</span>
+              <span class="text-slate-300 font-semibold" id="profilesCountText">4 Configured Environments</span>
+            </div>
+            <div class="flex items-center gap-2 font-mono text-xs flex-wrap">
+              <span class="text-slate-500 text-[11px]">Runtime Hook:</span>
+              <span class="bg-[#14202d] border border-[#1e2d3d] px-2 py-0.5 rounded text-[11px] text-[#3fb950]">pre-commit-exec: ON</span>
+              <span class="bg-[#14202d] border border-[#1e2d3d] px-2 py-0.5 rounded text-[11px] text-[#a2c9ff]">ssh-agent-sync: SYNCED</span>
+              <button onclick="openAddModal()" class="px-3 py-1 rounded bg-[#238636] hover:bg-[#2ea043] text-white font-mono text-xs font-semibold">+ Add Identity</button>
+            </div>
+          </div>
+          <div id="profilesCardsList" class="flex flex-col gap-3"></div>
+        </div>
+      </div>
+
+      <!-- TAB 3: FOLDER MAPPINGS VIEW -->
+      <div id="tab-folder-mappings" class="tab-view hidden w-full max-w-5xl">
+        <div class="flex flex-col gap-5">
+          <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-5 rounded-xl bg-[#0d141e] border border-[#182330]">
+            <div class="flex flex-col gap-1.5 max-w-2xl font-mono text-xs">
+              <div class="flex items-center gap-2">
+                <span class="inline-block w-2 h-2 rounded-full bg-[#3fb950] animate-pulse"></span>
+                <span class="text-[11px] uppercase tracking-wider text-[#3fb950] font-semibold">Runtime Engine Active</span>
+                <span class="text-slate-500">· includeIf.gitdir</span>
+              </div>
+              <h2 class="text-base font-semibold text-white tracking-tight font-sans">Automatic Profile Detection</h2>
+              <p class="text-slate-400 font-sans leading-relaxed">
+                Sub-shell navigation hooks monitor file system transitions. Entering mapped directories triggers zero-latency 
+                <code class="px-1.5 py-0.5 rounded bg-[#162230] text-[#3fb950] font-mono text-[11px]">~/.gitconfig</code> swapping 
+                and immediate SSH identity re-binding in <code class="px-1.5 py-0.5 rounded bg-[#162230] text-[#a2c9ff] font-mono text-[11px]">ssh-agent</code>.
+              </p>
+            </div>
+            <div class="flex items-center gap-4 self-start lg:self-center font-mono text-xs">
+              <div class="flex flex-col items-end">
+                <span class="text-slate-400 text-[11px]">Daemon Switcher</span>
+                <span class="text-[#3fb950] font-semibold">STRICT_DISPATCH</span>
+              </div>
+              <div class="w-11 h-6 bg-[#238636] rounded-full p-0.5 cursor-pointer flex items-center justify-end">
+                <div class="w-5 h-5 bg-white rounded-full shadow"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Path Resolver Tool -->
+          <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 px-5 py-3.5 rounded-xl bg-[#060b10] border border-[#182330]">
+            <div class="flex items-center gap-2 flex-1 min-w-0 font-mono text-xs">
+              <span class="text-[#3fb950] text-sm font-bold">⚡</span>
+              <span class="text-slate-500">pwd:</span>
+              <input type="text" id="pathTestInput" value="~/Developer/Work/infra-core" oninput="resolveTestPath()" placeholder="Enter directory path..." class="bg-transparent border-b border-transparent hover:border-[#2a3c50] focus:border-[#3fb950] text-slate-100 px-1 py-0.5 flex-1 focus:outline-none transition-colors" />
+            </div>
+            <div class="flex items-center gap-2 shrink-0 font-mono text-xs">
+              <span class="text-slate-500 text-[11px] uppercase tracking-wider">Resolved Scope:</span>
+              <div id="resolvedScopeBadge" class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#3fb950]/15 border border-[#3fb950]/30 text-[#3fb950]">
+                <span class="w-1.5 h-1.5 rounded-full bg-[#3fb950]"></span>
+                <span class="font-semibold" id="resolvedScopeText">Work (id_ed25519_work)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Configured Workspaces List -->
+          <div class="flex flex-col gap-3">
+            <div class="flex items-center justify-between px-1 font-mono text-xs">
+              <div class="flex items-center gap-2">
+                <span class="uppercase tracking-wider text-slate-500 text-[11px]">Configured Workspaces</span>
+                <span class="px-2 py-0.5 rounded bg-[#162230] text-slate-300 text-[11px] font-semibold" id="mappingsCountText">4 Paths</span>
+              </div>
+              <button onclick="openAddModal()" class="px-3 py-1 rounded bg-[#238636] hover:bg-[#2ea043] text-white text-xs font-semibold font-mono">+ Add Path</button>
+            </div>
+            <div id="mappingsListContainer" class="flex flex-col gap-2"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: SSH KEYS MANAGER -->
+      <div id="tab-ssh-keys" class="tab-view hidden w-full max-w-5xl">
+        <div class="flex flex-col gap-5">
+          <!-- Top Deck -->
+          <div class="bg-[#0d141e] rounded-xl p-5 border border-[#182330] shadow-sm relative overflow-hidden">
+            <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2 font-mono text-[11px] text-slate-500">
+                  <span class="text-[#3fb950]">gittu://crypt/ssh-agent</span>
+                  <span>·</span>
+                  <span>SYSTEM ENCLAVE INTEGRATED</span>
+                </div>
+                <div class="flex items-center gap-2.5 flex-wrap">
+                  <div class="w-8 h-8 rounded bg-[#16202c] border border-[#233547] flex items-center justify-center text-[#3fb950]">🔑</div>
+                  <h1 class="text-base font-semibold text-white tracking-tight">SSH-Agent Keyring & Cryptographic Identities</h1>
+                  <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[#3fb950]/10 text-[#3fb950] font-mono text-[11px]">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[#3fb950] animate-pulse"></span>
+                    <span>AGENT DAEMON ACTIVE · <span id="keysCountBadge">4</span> Keys In Memory</span>
+                  </div>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 flex-wrap font-mono text-xs">
+                <button onclick="syncKeychain()" id="syncKeychainBtn" class="px-3 py-1.5 rounded bg-[#16202c] hover:bg-[#202d3e] text-slate-200 border border-[#233547]">↻ Sync Keychain</button>
+                <button onclick="flushInactive()" id="flushInactiveBtn" class="px-3 py-1.5 rounded bg-[#16202c] hover:bg-[#202d3e] text-slate-400 hover:text-slate-200 border border-[#233547]">Flush Inactive</button>
+              </div>
+            </div>
+            <div class="mt-4 pt-3 border-t border-[#162230] flex flex-wrap items-center justify-between gap-3 text-slate-400 font-mono text-[11px]">
+              <div class="flex items-center gap-4 flex-wrap">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-slate-500">Socket path:</span>
+                  <span class="text-slate-200 bg-[#060b10] px-2 py-0.5 rounded border border-[#182330]">~/.ssh/agent.sock</span>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <span class="text-slate-500">Enclave:</span>
+                  <span class="text-[#a2c9ff]">Hardware Safe + FIDO2 CC EAL6+</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-1.5">
+                <span class="text-slate-500">Identity Switches (24h):</span>
+                <span class="text-[#3fb950] font-bold">142 OK</span>
+                <span class="text-slate-600">/ 0 ERR</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Keys List -->
+          <div id="sshKeysListContainer" class="flex flex-col gap-3"></div>
+
+          <!-- Terminal Diagnostics Probe Drawer -->
+          <div class="bg-[#060b10] rounded-xl p-4 border border-[#182330] shadow-2xl space-y-3 font-mono">
+            <div class="flex items-center justify-between px-1">
+              <div class="flex items-center gap-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-[#ff5f56]"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]"></div>
+                <div class="w-2.5 h-2.5 rounded-full bg-[#27c93f]"></div>
+                <span class="text-slate-500 text-xs ml-2">diagnostics://ssh-probe-terminal</span>
+              </div>
+              <div class="flex items-center gap-2 text-xs">
+                <span class="px-2.5 py-0.5 rounded bg-[#101924] border border-[#1c2a3a] text-[#3fb950] font-semibold text-[11px]" id="terminalLatencyPill">
+                  28ms · TLS v1.3 · Handshake OK (Status 1)
+                </span>
+                <button onclick="clearTerminal()" class="p-1 text-slate-500 hover:text-slate-300 text-xs">✕ Clear</button>
+              </div>
+            </div>
+            <div class="bg-[#05080c] rounded-lg p-4 font-mono text-xs space-y-1.5 select-text text-slate-200 overflow-x-auto border border-[#141e2a]">
+              <div class="flex items-center gap-2 text-slate-500 pb-1 border-b border-[#111924]">
+                <span class="text-[#3fb950] font-bold">git@gitswitch</span>
+                <span>:</span>
+                <span class="text-[#38bdf8] font-bold">~/.ssh</span>
+                <span class="text-[#3fb950]">$</span>
+                <span class="text-white" id="cmdEchoText">ssh -T -i ~/.ssh/id_ed25519_work git@github.com</span>
+              </div>
+              <div class="space-y-1 pt-1 text-[11px] text-slate-300 leading-relaxed" id="cmdOutputLines"></div>
+              <div class="flex items-center gap-1.5 text-[#3fb950] pt-2 text-[11px]">
+                <span>●</span>
+                <span class="text-slate-500">SSH Session finished in</span>
+                <span class="text-emerald-400 font-semibold" id="probeTimeText">0.028s</span>
+                <span class="inline-block w-2 h-3.5 bg-[#3fb950] animate-pulse ml-1"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Bottom Telemetry Status Deck Footer -->
+    <footer class="h-10 bg-[#060b10] border-t border-[#162230] px-5 flex items-center justify-between font-mono text-xs text-slate-400 select-none">
+      <div class="flex items-center gap-6">
+        <div class="flex items-center gap-1.5">
+          <span class="text-slate-500">config:</span>
+          <span class="text-[#3fb950]">~/.gitconfig</span>
+          <span class="text-slate-600">→</span>
+          <span class="text-slate-200" id="footerActiveSubconfig">~/.gitconfig-work</span>
+        </div>
+        <div class="hidden sm:flex items-center gap-1.5">
+          <span class="text-slate-500">ssh-agent:</span>
+          <span class="text-[#a2c9ff]">active (PID 49201)</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-1.5 text-slate-400">
+          <span class="w-1.5 h-1.5 rounded-full bg-[#3fb950] animate-pulse"></span>
+          <span>latency: <strong class="text-white" id="footerLatencyText">0.18ms</strong></span>
+        </div>
+        <button onclick="reloadState()" class="flex items-center gap-1 px-2 py-0.5 bg-[#121c28] hover:bg-[#1a2838] border border-[#1e2d3e] rounded text-slate-300 hover:text-white transition-colors text-[11px]" title="Reload configuration">
+          <span>↻ reload daemon</span>
+        </button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ADD IDENTITY MODAL -->
+  <div id="addModalOverlay" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-[#04080dc8] backdrop-blur-md">
+    <div class="modal-enter w-full max-w-[680px] bg-[#0d151e] border border-[#1b2734] rounded-xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.85),0_0_35px_rgba(63,185,80,0.08)] overflow-hidden flex flex-col relative">
+      <div class="h-[2px] w-full bg-gradient-to-r from-[#1b2734] via-[#3fb950] to-[#1b2734]"></div>
+      <div class="px-6 py-4 bg-[#0a1119] border-b border-[#1b2734] flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-lg bg-[#3fb950]/10 border border-[#3fb950]/30 flex items-center justify-center text-[#3fb950] font-bold text-sm shadow-inner">⚡</div>
+          <div>
+            <h2 class="text-sm md:text-base font-semibold tracking-tight text-white flex items-center gap-2">
+              Initialize New GitHub Identity
+              <span class="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-[#3fb950]/15 text-[#3fb950] border border-[#3fb950]/30">v1.8.0</span>
+            </h2>
+            <p class="text-xs text-slate-400 font-mono mt-0.5">Configures gitconfig scope, SSH agent bindings, & automatic folder dispatch.</p>
+          </div>
+        </div>
+        <button onclick="closeAddModal()" class="w-7 h-7 rounded-md border border-[#1b2734] text-slate-400 hover:text-white hover:bg-[#15202c] flex items-center justify-center text-xs font-mono">✕</button>
+      </div>
+
+      <form onsubmit="handleSaveIdentity(event)" class="p-6 space-y-4 font-mono text-xs">
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="font-medium text-slate-300 flex items-center gap-1.5"><span class="text-[#3fb950]">01.</span> PROFILE IDENTIFIER</label>
+            <span class="text-[11px] text-slate-500">UI alias / workspace label</span>
+          </div>
+          <div class="relative">
+            <input id="inputProfileName" type="text" required placeholder="e.g. Client / Freelance or Open-Source Labs" value="Client / Freelance" class="w-full px-3.5 py-2.5 rounded-lg bg-[#070d13] border border-[#1b2734] text-slate-100 focus:outline-none focus:border-[#3fb950] shadow-inner" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="font-medium text-slate-300 flex items-center gap-1.5"><span class="text-[#3fb950]">02.</span> GITHUB USERNAME</label>
+              <span class="text-[10px] text-slate-500">user.name</span>
+            </div>
+            <div class="relative">
+              <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 font-mono text-xs">@</div>
+              <input id="inputUsername" type="text" required placeholder="alex-consulting" value="alex-consulting" class="w-full pl-8 pr-3.5 py-2.5 rounded-lg bg-[#070d13] border border-[#1b2734] text-slate-100 focus:outline-none focus:border-[#3fb950] shadow-inner" />
+            </div>
+          </div>
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="font-medium text-slate-300 flex items-center gap-1.5"><span class="text-[#3fb950]">03.</span> COMMITTING EMAIL</label>
+              <span class="text-[10px] text-slate-500">user.email</span>
+            </div>
+            <input id="inputEmail" type="email" required placeholder="alex@freelance-studio.dev" value="alex@freelance-studio.dev" class="w-full px-3.5 py-2.5 rounded-lg bg-[#070d13] border border-[#1b2734] text-slate-100 focus:outline-none focus:border-[#3fb950] shadow-inner" />
+          </div>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="font-medium text-slate-300 flex items-center gap-1.5"><span class="text-[#3fb950]">04.</span> ASSOCIATED SSH KEY</label>
+            <span class="text-[10px] text-slate-500">id_ed25519</span>
+          </div>
+          <select id="selectSSHKey" class="w-full px-3.5 py-2.5 rounded-lg bg-[#070d13] border border-[#1b2734] text-slate-100 focus:outline-none focus:border-[#3fb950] shadow-inner"></select>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="font-medium text-slate-300 flex items-center gap-1.5"><span class="text-[#3fb950]">05.</span> AUTO-SWITCH SCOPE PATHS</label>
+            <span class="text-[11px] text-[#38bdf8]">gitdir:includeIf hook</span>
+          </div>
+          <input id="inputScopePaths" type="text" required placeholder="~/Developer/Freelance/*" value="~/Developer/Freelance/*" class="w-full px-3.5 py-2.5 rounded-lg bg-[#070d13] border border-[#1b2734] text-slate-100 focus:outline-none focus:border-[#3fb950] shadow-inner" />
+          <p class="text-[10px] text-slate-500 mt-1">Entering this path in bash/powershell automatically switches credentials.</p>
+        </div>
+
+        <!-- Terminal Stream Animation Feedback -->
+        <div id="saveStreamLogs" class="hidden p-3 rounded-lg bg-[#05090e] border border-[#1b2734] text-[11px] space-y-1 text-slate-300"></div>
+
+        <div class="flex items-center justify-end gap-3 pt-3 border-t border-[#1b2734]">
+          <button type="button" onclick="closeAddModal()" class="px-4 py-2 rounded text-slate-400 hover:text-white font-mono text-xs">Cancel</button>
+          <button type="submit" id="saveIdentityBtn" class="px-4 py-2 rounded bg-[#238636] hover:bg-[#2ea043] text-white font-mono text-xs font-semibold shadow-md flex items-center gap-2">
+            <span>⚡ Save & Link Identity</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- CONFIG INSPECTOR MODAL -->
+  <div id="configModalOverlay" class="hidden fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-[#04080dc8] backdrop-blur-md">
+    <div class="modal-enter w-full max-w-[760px] bg-[#0d151e] border border-[#1b2734] rounded-xl shadow-2xl overflow-hidden flex flex-col relative">
+      <div class="h-[2px] w-full bg-gradient-to-r from-[#1b2734] via-[#38bdf8] to-[#1b2734]"></div>
+      <div class="px-6 py-4 bg-[#0a1119] border-b border-[#1b2734] flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-semibold text-white tracking-tight flex items-center gap-2">
+            Host Configuration Inspector
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-[#38bdf8]/15 text-[#38bdf8] border border-[#38bdf8]/30">Live Sync</span>
+          </h2>
+          <p class="text-xs text-slate-400 font-mono mt-0.5">Real-time inspect of generated ~/.gitconfig and ~/.ssh/config system files.</p>
+        </div>
+        <button onclick="closeConfigModal()" class="w-7 h-7 rounded-md border border-[#1b2734] text-slate-400 hover:text-white hover:bg-[#15202c] flex items-center justify-center text-xs font-mono">✕</button>
+      </div>
+      <div class="p-6 font-mono text-xs space-y-3">
+        <div class="flex items-center justify-between pb-1">
+          <div class="flex gap-2">
+            <button onclick="switchConfigTab('gitconfig')" id="tabBtnGitConfig" class="px-3 py-1 rounded bg-[#14202d] text-[#3fb950] border border-[#223348]">~/.gitconfig</button>
+            <button onclick="switchConfigTab('sshconfig')" id="tabBtnSSHConfig" class="px-3 py-1 rounded text-slate-400 hover:text-white">~/.ssh/config</button>
+          </div>
+          <button onclick="copyCurrentConfigFile()" class="px-3 py-1 rounded bg-[#16202c] border border-[#233547] text-slate-300 hover:text-white" id="copyConfigBtn">📋 Copy File</button>
+        </div>
+        <div class="rounded-lg bg-[#070b10] border border-[#1b2734] p-4 text-[11px] font-mono text-slate-300 max-h-[380px] overflow-y-auto leading-relaxed select-text">
+          <pre id="configContentDisplay" class="whitespace-pre-wrap"></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLICATION SCRIPTS -->
+  <script>
+    // State Store
+    const state = {
+      activeTab: 'dashboard',
+      activeProfileId: 'work',
+      switchLatency: 0.18,
+      profiles: [
+        {
+          id: 'work',
+          name: 'Work',
+          username: 'rahul-corp',
+          email: 'rahul@company.com',
+          ssh_key: 'id_ed25519_work',
+          signing_key: '0x9F4C2A1E',
+          scope_paths: ['~/Developer/Work/*', '~/Projects/Client-Infra/*'],
+          color: '#3fb950',
+          tag: 'corp-id',
+          shortcut: '⌘1'
+        },
+        {
+          id: 'personal',
+          name: 'Personal',
+          username: 'rahulcodes',
+          email: 'rahul.personal@gmail.com',
+          ssh_key: 'id_rsa_personal',
+          scope_paths: ['~/Developer/Personal/*', '~/Sideprojects/*'],
+          color: '#6366f1',
+          tag: 'personal',
+          shortcut: '⌘2'
+        },
+        {
+          id: 'client',
+          name: 'Client / Freelance',
+          username: 'alex-consulting',
+          email: 'alex@freelance-studio.dev',
+          ssh_key: 'id_ed25519_client',
+          signing_key: '0x7B28C39F',
+          scope_paths: ['~/Developer/Freelance/*', '~/Clients/*'],
+          color: '#38bdf8',
+          tag: 'agency-dev',
+          shortcut: '⌘3'
+        },
+        {
+          id: 'enterprise',
+          name: 'Enterprise Bot',
+          username: 'bastion-bot',
+          email: 'bot@corp-bastion.internal',
+          ssh_key: 'id_ed25519_oss',
+          scope_paths: ['~/Enterprise/Infra/*'],
+          color: '#bc8cff',
+          tag: 'bastion-bot',
+          shortcut: '⌘4'
+        }
+      ],
+      mappings: [
+        { id: 'work-dev', path_pattern: '~/Developer/Work/*', profile_id: 'work', profile_name: 'Work', ssh_key: 'id_ed25519_work (256b)' },
+        { id: 'work-infra', path_pattern: '~/Projects/Client-Infra/*', profile_id: 'work', profile_name: 'Work', ssh_key: 'id_ed25519_work (256b)' },
+        { id: 'personal-dev', path_pattern: '~/Developer/Personal/*', profile_id: 'personal', profile_name: 'Personal', ssh_key: 'id_rsa_personal (4096b)' },
+        { id: 'client-freelance', path_pattern: '~/Developer/Freelance/*', profile_id: 'client', profile_name: 'Client / Freelance', ssh_key: 'id_ed25519_client (256b)' }
+      ],
+      sshKeys: [
+        {
+          name: 'id_ed25519_work',
+          algorithm: 'Ed25519 · 256-bit elliptic curve',
+          fingerprint: 'SHA256:7uK2xP+8mN9vB3qQ90Zx9uJ4kLmQpWs2eRtU89wX4yZ01',
+          public_key: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOrXb7y5N3PqLmK2wX9z0Y1uV4mN8pRs9tUe0q1wZ3x rahul@company.com',
+          bound_profile: 'Work (@rahul-corp / rahul@company.com)',
+          auths_today: 48,
+          ttl: 'Session Persistent',
+          signed_commits: '1,208 verified',
+          is_active_signing: true
+        },
+        {
+          name: 'id_rsa_personal',
+          algorithm: 'RSA · 4096-bit (Legacy Compatible)',
+          fingerprint: 'SHA256:d8N7xQ41pL0m589uYqZ24V31nB50pOx421k92zV88',
+          public_key: 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDQ9wX2yZ01kLmQpWs2eRtU89wX4yZ01 rahul.personal@gmail.com',
+          bound_profile: 'Personal (@rahulcodes / rahul.personal@gmail.com)',
+          auths_today: 12,
+          ttl: 'Persistent',
+          signed_commits: '342 commits',
+          is_active_signing: false
+        },
+        {
+          name: 'id_ed25519_client',
+          algorithm: 'Ed25519 · 256-bit elliptic curve',
+          fingerprint: 'SHA256:8kL9v+3qJ91zX4uV4mN8pRs9tUe0q1wZ3x7uK2xP+8mN9',
+          public_key: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK1mN8pRs9tUe0q1wZ3x7uK2xP+8mN9 alex@freelance-studio.dev',
+          bound_profile: 'Client / Freelance (@alex-consulting)',
+          auths_today: 19,
+          ttl: 'Session Persistent',
+          signed_commits: '89 verified',
+          is_active_signing: false
+        },
+        {
+          name: 'id_ed25519_oss',
+          algorithm: 'Ed25519 · 256-bit Bastion Signed',
+          fingerprint: 'SHA256:3pQ90Zx9uJ4kLmQpWs2eRtU89wX4yZ017uK2xP+8mN9vB',
+          public_key: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC9x8yZ01kLmQpWs2eRtU89wX4yZ01 bot@corp-bastion.internal',
+          bound_profile: 'Enterprise Bot (@bastion-bot)',
+          auths_today: 82,
+          ttl: '4h remaining',
+          signed_commits: '5,410 verified',
+          is_active_signing: false
+        }
+      ]
+    };
+
+    // Load from localStorage or API
+    function init() {
+      try {
+        const storedProfiles = localStorage.getItem('gitswitch_profiles');
+        if (storedProfiles) state.profiles = JSON.parse(storedProfiles);
+        const storedActive = localStorage.getItem('gitswitch_active_id');
+        if (storedActive) state.activeProfileId = storedActive;
+      } catch (e) {}
+
+      renderDialTicks();
+      renderActiveCard();
+      renderProfilesList();
+      renderMappingsList();
+      renderSSHKeysList();
+      renderTerminalOutput('id_ed25519_work', 'rahul-corp', '28ms');
+      resolveTestPath();
+      setupDialDragging();
+
+      // Keyboard shortcuts
+      window.addEventListener('keydown', (e) => {
+        const isMeta = e.metaKey || e.ctrlKey;
+        if (isMeta && e.key.toLowerCase() === 'n') {
+          e.preventDefault(); openAddModal();
+        } else if (isMeta && e.key === ',') {
+          e.preventDefault(); openConfigModal();
+        } else if (isMeta && ['1','2','3','4'].includes(e.key)) {
+          const idx = parseInt(e.key) - 1;
+          if (state.profiles[idx]) {
+            e.preventDefault();
+            switchProfile(state.profiles[idx].id);
+          }
+        }
+      });
+    }
+
+    function switchTab(tabId) {
+      state.activeTab = tabId;
+      document.querySelectorAll('.tab-view').forEach(el => el.classList.add('hidden'));
+      const activeEl = document.getElementById(`tab-${tabId}`);
+      if (activeEl) activeEl.classList.remove('hidden');
+
+      document.querySelectorAll('.nav-tab').forEach(btn => {
+        const isCurrent = btn.dataset.tab === tabId;
+        btn.classList.toggle('bg-[#14202d]', isCurrent);
+        btn.classList.toggle('text-[#3fb950]', isCurrent);
+        btn.classList.toggle('border-[#223348]', isCurrent);
+        btn.classList.toggle('text-slate-400', !isCurrent);
+        const dot = btn.querySelector('.tab-dot');
+        if (dot) dot.classList.toggle('hidden', !isCurrent);
+      });
+    }
+
+    // Dial Rendering & Angle Calculations
+    const arcSpan = 240;
+    const startAngle = -120;
+    function getAngleForIndex(i, total) {
+      if (total <= 1) return 0;
+      return startAngle + i * (arcSpan / (total - 1));
+    }
+
+    function renderDialTicks() {
+      const container = document.getElementById('dialTicksContainer');
+      container.innerHTML = '';
+      const total = state.profiles.length;
+
+      state.profiles.forEach((p, i) => {
+        const angle = getAngleForIndex(i, total);
+        const rad = (angle - 90) * (Math.PI / 180);
+        const radius = 43; // % radius
+        const x = 50 + radius * Math.cos(rad);
+        const y = 50 + radius * Math.sin(rad);
+
+        const isActive = p.id === state.activeProfileId;
+        const tick = document.createElement('div');
+        tick.className = 'tick-point absolute cursor-pointer group z-20';
+        tick.style.left = `${x}%`;
+        tick.style.top = `${y}%`;
+        tick.style.transform = 'translate(-50%, -50%)';
+        tick.onclick = () => switchProfile(p.id);
+
+        tick.innerHTML = `
+          <div class="flex flex-col items-center">
+            <div class="tick-badge px-2.5 py-1 rounded-full font-mono text-[11px] font-medium flex items-center gap-1.5 transition-all shadow-md ${
+              isActive 
+                ? 'bg-[#101824] border text-white font-bold ring-2 ring-[#3fb950]/20' 
+                : 'bg-[#0d141e] border border-[#223348] text-slate-400 hover:text-slate-200'
+            }" style="${isActive ? `border-color: ${p.color}; color: ${p.color}; box-shadow: 0 0 16px ${p.color}40;` : ''}">
+              <span class="w-2 h-2 rounded-full ${isActive ? 'animate-pulse' : 'bg-slate-600'}" style="${isActive ? `background-color: ${p.color};` : ''}"></span>
+              <span>0${i+1}. ${p.name.toUpperCase()}</span>
+            </div>
+            <span class="text-[10px] font-mono mt-1 ${isActive ? 'text-emerald-400 font-semibold' : 'text-slate-500'}">${p.tag || p.username}</span>
+          </div>
+        `;
+        container.appendChild(tick);
+      });
+
+      // Update Rotary Knob Rotation
+      const activeIdx = state.profiles.findIndex(p => p.id === state.activeProfileId);
+      const activeProfile = state.profiles[activeIdx] || state.profiles[0];
+      const targetAngle = getAngleForIndex(activeIdx, total);
+
+      const dial = document.getElementById('rotaryDial');
+      if (dial) dial.style.transform = `rotate(${targetAngle}deg)`;
+
+      const needle = document.getElementById('dialNeedle');
+      if (needle) {
+        needle.style.backgroundColor = activeProfile.color;
+        needle.style.boxShadow = `0 0 10px ${activeProfile.color}, 0 0 18px ${activeProfile.color}`;
+      }
+
+      const glow = document.getElementById('iconGlowAura');
+      if (glow) glow.style.backgroundColor = `${activeProfile.color}33`;
+
+      const label = document.getElementById('centerProfileLabel');
+      if (label) {
+        label.textContent = activeProfile.name.toUpperCase();
+        label.style.color = activeProfile.color;
+      }
+      const iconWrapper = document.getElementById('centerIconWrapper');
+      if (iconWrapper) iconWrapper.style.transform = `rotate(${-targetAngle}deg)`;
+    }
+
+    // Interactive Dragging on Dial
+    function setupDialDragging() {
+      const dial = document.getElementById('rotaryDial');
+      if (!dial) return;
+      let isDragging = false;
+
+      dial.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        const onMouseMove = (ev) => {
+          if (!isDragging) return;
+          const rect = dial.getBoundingClientRect();
+          const cx = rect.left + rect.width / 2;
+          const cy = rect.top + rect.height / 2;
+          let deg = Math.atan2(ev.clientY - cy, ev.clientX - cx) * (180 / Math.PI) + 90;
+          if (deg > 180) deg -= 360;
+          if (deg < -130) deg = -120;
+          if (deg > 130) deg = 120;
+
+          dial.style.transform = `rotate(${deg}deg)`;
+          const iconWrapper = document.getElementById('centerIconWrapper');
+          if (iconWrapper) iconWrapper.style.transform = `rotate(${-deg}deg)`;
+
+          // Snap check
+          let closest = 0;
+          let minDiff = 999;
+          state.profiles.forEach((_, i) => {
+            const a = getAngleForIndex(i, state.profiles.length);
+            const diff = Math.abs(deg - a);
+            if (diff < minDiff) { minDiff = diff; closest = i; }
+          });
+          const target = state.profiles[closest];
+          if (target && target.id !== state.activeProfileId) {
+            switchProfile(target.id, false);
+          }
+        };
+
+        const onMouseUp = () => {
+          isDragging = false;
+          window.removeEventListener('mousemove', onMouseMove);
+          window.removeEventListener('mouseup', onMouseUp);
+          renderDialTicks();
+        };
+
+        window.addEventListener('mousemove', onMouseMove);
+        window.addEventListener('mouseup', onMouseUp);
+      });
+    }
+
+    // Switch Profile Execution (< 0.5ms)
+    async function switchProfile(profileId, updateTicks = true) {
+      const start = performance.now();
+      state.activeProfileId = profileId;
+      try {
+        localStorage.setItem('gitswitch_active_id', profileId);
+      } catch (e) {}
+
+      // If running with Wails backend
+      if (window['go']?.['main']?.['App']?.['SwitchActiveProfile']) {
+        try {
+          await window['go']['main']['App']['SwitchActiveProfile'](profileId);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      const elapsed = Math.max(0.12, (performance.now() - start));
+      state.switchLatency = parseFloat(elapsed.toFixed(2));
+
+      document.getElementById('footerLatencyText').textContent = `${state.switchLatency}ms`;
+      document.getElementById('daemonStatusText').textContent = `DAEMON: STRICT_DISPATCH (${state.switchLatency}ms)`;
+      document.getElementById('footerActiveSubconfig').textContent = `~/.gitconfig-${profileId}`;
+
+      if (updateTicks) renderDialTicks();
+      renderActiveCard();
+      renderProfilesList();
+      resolveTestPath();
+    }
+
+    function renderActiveCard() {
+      const p = state.profiles.find(x => x.id === state.activeProfileId) || state.profiles[0];
+      const container = document.getElementById('activeProfileCardContainer');
+      container.innerHTML = `
+        <div class="bg-[#0c131c] border border-[#1d2b3c] rounded-xl p-5 shadow-2xl relative overflow-hidden transition-all duration-300">
+          <div class="absolute left-0 top-0 bottom-0 w-1.5 transition-colors duration-300" style="background-color: ${p.color}; box-shadow: 0 0 16px ${p.color};"></div>
+          <div class="flex flex-col gap-4 pl-2">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <span class="text-base font-semibold text-white tracking-tight">${p.name}</span>
+                <span class="bg-[#182330] px-1.5 py-0.5 rounded font-mono text-[10px] text-slate-400 border border-[#233547]">${p.shortcut || '⌘1'}</span>
+                <div class="flex items-center gap-1.5 px-2.5 py-0.5 rounded bg-[#3fb950]/15 border border-[#3fb950]/30 text-[#3fb950] font-mono text-[11px] font-semibold">
+                  <span class="w-1.5 h-1.5 rounded-full bg-[#3fb950] animate-pulse"></span>
+                  <span>CURRENT ACTIVE</span>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 font-mono text-[11px] text-slate-400">
+                <span class="text-slate-500">SWITCH LATENCY:</span>
+                <span class="text-emerald-400 font-semibold px-1.5 py-0.5 rounded bg-[#101924] border border-[#1b2736]">${state.switchLatency}ms</span>
+                <span class="text-slate-600">·</span>
+                <span class="text-indigo-400">ZERO_DROP</span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center bg-[#070d13]/80 p-3 rounded-lg border border-[#172230] font-mono text-xs">
+              <div class="md:col-span-4 flex items-center gap-2 min-w-0">
+                <span class="w-2 h-2 rounded-full bg-emerald-400/50 shrink-0"></span>
+                <div class="flex items-baseline gap-1.5 truncate">
+                  <span class="text-white font-medium">${p.username}</span>
+                  <span class="text-slate-500 text-[11px]">@${p.username}</span>
+                </div>
+              </div>
+              <div class="md:col-span-4 flex items-center gap-1.5 min-w-0">
+                <span class="text-slate-500 text-[11px] shrink-0">mailto:</span>
+                <span class="text-slate-200 truncate">${p.email}</span>
+              </div>
+              <div class="md:col-span-4 flex items-center justify-start md:justify-end gap-2 flex-wrap">
+                <span class="bg-[#14202d] border border-[#223348] px-2 py-0.5 rounded text-[11px] text-[#a2c9ff] flex items-center gap-1">
+                  <span>🔑 ${p.ssh_key}</span>
+                </span>
+                ${p.signing_key ? `<span class="bg-[#14202d] border border-[#3fb950]/30 px-2 py-0.5 rounded text-[11px] text-[#3fb950]">✓ ${p.signing_key}</span>` : ''}
+              </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+              <div class="flex items-center gap-2 bg-[#090e15] px-3 py-1.5 rounded-lg border border-[#182330] font-mono text-[11px] text-slate-400 min-w-0 flex-1">
+                <span class="text-slate-500 uppercase tracking-wider text-[10px] shrink-0">SCOPE PATHS:</span>
+                <span class="text-slate-300 truncate">${p.scope_paths ? p.scope_paths.join(' · ') : 'Global scope'}</span>
+                <span class="ml-auto text-emerald-400/80 text-[10px] shrink-0 bg-[#0e1722] px-1.5 py-0.5 rounded">includeIf.gitdir</span>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <button onclick="applyToTerminal('${p.id}')" id="btnApplyTerminal" class="px-3.5 py-1.5 rounded bg-[#16202c] hover:bg-[#202d3e] text-slate-200 border border-[#233547] font-mono text-xs">
+                  ⚡ Apply to Terminal
+                </button>
+                <button onclick="testProbeForActive('${p.ssh_key}')" class="px-3.5 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white font-mono text-xs font-semibold shadow">
+                  ⚡ Test Probe
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderProfilesList() {
+      const container = document.getElementById('profilesCardsList');
+      if (!container) return;
+      container.innerHTML = '';
+      document.getElementById('profilesCountText').textContent = `${state.profiles.length} Configured Environments`;
+
+      state.profiles.forEach(p => {
+        const isActive = p.id === state.activeProfileId;
+        const card = document.createElement('div');
+        card.className = `relative bg-[#0d141e] rounded-xl p-4 sm:p-5 border transition-all duration-200 shadow-lg ${
+          isActive ? 'border-[#2a3c50] shadow-[0_8px_30px_rgba(0,0,0,0.6)]' : 'border-[#1b2636] hover:border-[#27384b]'
+        }`;
+        card.innerHTML = `
+          ${isActive ? `<div class="absolute left-0 top-0 bottom-0 w-1 rounded-l-xl shadow-[0_0_12px_rgba(63,185,80,0.65)]" style="background-color: ${p.color};"></div>` : ''}
+          <div class="flex flex-col gap-3 ${isActive ? 'pl-2' : ''}">
+            <div class="flex items-center justify-between gap-3 flex-wrap">
+              <div class="flex items-center gap-3">
+                <span class="text-base font-semibold text-white tracking-tight">${p.name}</span>
+                <span class="bg-[#182330] px-1.5 py-0.5 rounded font-mono text-[10px] text-slate-400 border border-[#233547]">${p.shortcut || '⌘'}</span>
+                ${isActive ? `
+                  <div class="flex items-center gap-1.5 bg-[#3fb950]/15 border border-[#3fb950]/30 px-2.5 py-0.5 rounded">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[#3fb950] animate-pulse"></span>
+                    <span class="font-mono text-[10px] text-[#3fb950] uppercase font-bold tracking-widest">CURRENT ACTIVE</span>
+                  </div>
+                ` : `<span class="bg-[#14202d] border border-[#223348] px-2 py-0.5 rounded font-mono text-[10px] text-slate-500 uppercase tracking-wider">Standby</span>`}
+              </div>
+
+              <div class="flex items-center gap-2">
+                ${isActive ? `
+                  <div class="bg-[#3fb950]/15 text-[#3fb950] border border-[#3fb950]/30 px-3 py-1 rounded font-mono text-xs flex items-center gap-1.5">
+                    <span>✓</span><span>Active</span>
+                  </div>
+                ` : `
+                  <button onclick="switchProfile('${p.id}')" class="px-3 py-1 rounded bg-[#16202c] hover:bg-[#202d3e] text-slate-200 border border-[#233547] font-mono text-xs">
+                    ⇆ Switch ${p.shortcut || ''}
+                  </button>
+                `}
+                <button onclick="openConfigModal()" class="px-2.5 py-1 rounded text-slate-400 hover:text-white font-mono text-xs">Config</button>
+                ${state.profiles.length > 1 ? `
+                  <button onclick="deleteProfile('${p.id}')" class="p-1 text-slate-500 hover:text-red-400 text-xs font-mono">✕</button>
+                ` : ''}
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-center bg-[#070d13]/70 p-3 rounded-lg border border-[#162230] font-mono text-xs">
+              <div class="md:col-span-4 flex items-center gap-2 min-w-0">
+                <span class="w-2 h-2 rounded-full shrink-0" style="background-color: ${p.color};"></span>
+                <span class="text-white font-medium">${p.username}</span>
+                <span class="text-slate-500 text-[11px] truncate">@${p.username}</span>
+              </div>
+              <div class="md:col-span-4 flex items-center gap-1.5 min-w-0">
+                <span class="text-slate-500 text-[11px]">mailto:</span>
+                <span class="text-slate-300 truncate">${p.email}</span>
+              </div>
+              <div class="md:col-span-4 flex items-center justify-start md:justify-end gap-2 flex-wrap">
+                <span class="bg-[#121c26] border border-[#1e2d3e] px-2 py-0.5 rounded text-[11px] text-[#a2c9ff]">🔑 ${p.ssh_key}</span>
+                ${p.signing_key ? `<span class="bg-[#121c26] border border-[#3fb950]/30 px-2 py-0.5 rounded text-[11px] text-[#3fb950]">✓ ${p.signing_key}</span>` : ''}
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 bg-[#090e15] px-3 py-1.5 rounded-lg border border-[#162230] font-mono text-xs min-w-0">
+              <span class="text-slate-500 uppercase text-[10px] tracking-wider shrink-0">Scope Paths:</span>
+              <span class="text-slate-300 truncate text-[11px]">${p.scope_paths ? p.scope_paths.join(' · ') : 'None'}</span>
+              <span class="ml-auto text-slate-500 shrink-0 text-[10px] hidden sm:inline">auto-switch on cd</span>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function renderMappingsList() {
+      const container = document.getElementById('mappingsListContainer');
+      if (!container) return;
+      container.innerHTML = '';
+      document.getElementById('mappingsCountText').textContent = `${state.mappings.length} Paths`;
+
+      state.mappings.forEach(m => {
+        const row = document.createElement('div');
+        row.className = 'group relative flex flex-col md:flex-row md:items-center justify-between p-4 rounded-xl bg-[#0d141e] border border-[#1b2636] hover:border-[#26374a] transition-all';
+        row.innerHTML = `
+          <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded bg-[#162330] border border-[#233547] flex items-center justify-center shrink-0 text-slate-300">📁</div>
+              <div class="flex flex-col font-mono text-xs">
+                <span class="text-white font-semibold text-xs">${m.path_pattern}</span>
+                <span class="text-slate-500 text-[11px]">Target Profile: <span class="text-slate-200">${m.profile_name}</span></span>
+              </div>
+            </div>
+            <div class="hidden xl:flex items-center gap-1.5 font-mono text-[11px] text-[#a2c9ff] bg-[#14202d] border border-[#223348] px-2.5 py-1 rounded">
+              <span>🔑 ${m.ssh_key}</span>
+            </div>
+          </div>
+          <div class="flex items-center justify-between sm:justify-end gap-3 mt-3 md:mt-0 font-mono text-xs">
+            <div class="flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] bg-[#14202d] text-slate-400 border border-[#1b2734]">
+              <span class="w-1.5 h-1.5 rounded-full ${m.profile_id === state.activeProfileId ? 'bg-[#3fb950]' : 'bg-slate-500'}"></span>
+              <span>${m.profile_id === state.activeProfileId ? 'includeIf ACTIVE' : 'includeIf READY'}</span>
+            </div>
+            <button onclick="unlinkMapping('${m.id}')" class="p-1.5 text-slate-500 hover:text-red-400">✕</button>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function renderSSHKeysList() {
+      const container = document.getElementById('sshKeysListContainer');
+      if (!container) return;
+      container.innerHTML = '';
+      document.getElementById('keysCountBadge').textContent = state.sshKeys.length;
+
+      state.sshKeys.forEach(k => {
+        const isCurrent = k.is_active_signing || k.name.includes(state.activeProfileId);
+        const card = document.createElement('div');
+        card.className = 'relative bg-[#0d141e] rounded-xl p-5 border border-[#1b2636] hover:border-[#27384b] transition-all shadow-md';
+        card.innerHTML = `
+          ${isCurrent ? '<div class="absolute left-0 top-3 bottom-3 w-1 bg-[#3fb950] rounded-r"></div>' : ''}
+          <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-4 ${isCurrent ? 'pl-2' : ''}">
+            <div class="space-y-2 flex-1 min-w-0 font-mono text-xs">
+              <div class="flex items-center gap-2.5 flex-wrap">
+                <span class="text-sm font-bold text-white">${k.name}</span>
+                ${isCurrent ? `
+                  <span class="px-2 py-0.5 rounded bg-[#3fb950] text-black text-[10px] font-bold tracking-wide">ACTIVE GIT SIGNING</span>
+                ` : `
+                  <span class="px-2 py-0.5 rounded bg-[#182330] text-slate-400 text-[10px] border border-[#233547]">STANDBY GIT KEY</span>
+                `}
+                <span class="px-2 py-0.5 rounded bg-[#070b10] text-[#3fb950] text-[10px] border border-[#182330] flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-[#3fb950]"></span><span>Loaded in Memory</span>
+                </span>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-2 text-slate-400 text-[11px]">
+                <div><span class="text-slate-500">Bound Profile:</span><span class="text-slate-200 font-medium ml-1">${k.bound_profile}</span></div>
+                <div><span class="text-slate-500">Algorithm:</span><span class="text-[#a2c9ff] ml-1">${k.algorithm}</span></div>
+              </div>
+              <div class="flex items-center gap-2 p-1.5 px-3 bg-[#060b10] border border-[#162230] rounded-lg max-w-2xl text-[11px]">
+                <span class="text-slate-500 shrink-0">SHA-256:</span>
+                <span class="text-slate-200 truncate select-all">${k.fingerprint}</span>
+                <button onclick="copyText('${k.fingerprint}', this)" class="shrink-0 p-1 text-slate-400 hover:text-[#3fb950]">📋</button>
+              </div>
+              <div class="flex items-center gap-3 text-slate-500 text-[11px] pt-1">
+                <span>Auths: <strong class="text-slate-300">${k.auths_today} today</strong></span>
+                <span>·</span>
+                <span>Expires: <strong class="text-slate-300">${k.ttl}</strong></span>
+                <span>·</span>
+                <span>Signed commits: <strong class="text-[#3fb950]">${k.signed_commits}</strong></span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0 self-end lg:self-center">
+              <button onclick="copyText('${k.public_key}', this)" class="px-3 py-1.5 rounded bg-[#16202c] hover:bg-[#202d3e] text-slate-200 border border-[#233547] text-xs font-mono">
+                📋 Copy Public Key
+              </button>
+              <button onclick="runSSHProbe('${k.name}')" class="px-3 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white text-xs font-mono font-semibold shadow">
+                ⚡ Test Connection
+              </button>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function resolveTestPath() {
+      const input = document.getElementById('pathTestInput');
+      const textEl = document.getElementById('resolvedScopeText');
+      if (!input || !textEl) return;
+      const val = input.value.trim().toLowerCase().replace(/\\/g, '/');
+      const matched = state.mappings.find(m => {
+        const cleanPat = m.path_pattern.toLowerCase().replace(/\\/g, '/').replace(/\*+$/, '');
+        return val.startsWith(cleanPat) || cleanPat.startsWith(val);
+      });
+      if (matched) {
+        textEl.textContent = `${matched.profile_name} (${matched.ssh_key})`;
+      } else {
+        textEl.textContent = 'Fallback Default (Work)';
+      }
+    }
+
+    function renderTerminalOutput(keyName, username, latency) {
+      document.getElementById('cmdEchoText').textContent = `ssh -T -i ~/.ssh/${keyName} git@github.com`;
+      document.getElementById('terminalLatencyPill').textContent = `${latency} · TLS v1.3 · Handshake OK (Status 1)`;
+      document.getElementById('probeTimeText').textContent = `${(parseFloat(latency)/1000).toFixed(3)}s`;
+      const out = document.getElementById('cmdOutputLines');
+      out.innerHTML = `
+        <p class="text-slate-500">OpenSSH_9.6p1, LibreSSL 3.3.6</p>
+        <p class="text-slate-500">debug1: Connecting to github.com [140.82.121.4] port 22.</p>
+        <p class="text-slate-500">debug1: Connection established.</p>
+        <p class="text-slate-500">debug1: identity file ~/.ssh/${keyName} type 3</p>
+        <p class="text-[#3fb950] font-medium">Hi ${username}! You have successfully authenticated, but GitHub does not provide shell access.</p>
+        <p class="text-slate-500">debug1: Exit status 1 (GitHub expected handshake exit code)</p>
+      `;
+    }
+
+    function runSSHProbe(keyName) {
+      const p = state.profiles.find(x => x.ssh_key === keyName) || state.profiles[0];
+      switchTab('ssh-keys');
+      renderTerminalOutput(keyName, p.username, '28ms');
+    }
+
+    function testProbeForActive(sshKey) {
+      switchTab('ssh-keys');
+      runSSHProbe(sshKey);
+    }
+
+    function clearTerminal() {
+      document.getElementById('cmdOutputLines').innerHTML = `<p class="text-slate-500">Console buffer cleared. Ready for probe...</p>`;
+    }
+
+    function copyText(str, btn) {
+      navigator.clipboard.writeText(str);
+      const orig = btn.innerHTML;
+      btn.innerHTML = '<span class="text-[#3fb950]">✓ Copied</span>';
+      setTimeout(() => { btn.innerHTML = orig; }, 1800);
+    }
+
+    function applyToTerminal(profileId) {
+      const p = state.profiles.find(x => x.id === profileId) || state.profiles[0];
+      const cmd = `# Apply in current terminal:\nexport GIT_AUTHOR_NAME="${p.username}"\nexport GIT_AUTHOR_EMAIL="${p.email}"\nexport GIT_COMMITTER_NAME="${p.username}"\nexport GIT_COMMITTER_EMAIL="${p.email}"\nexport GIT_SSH_COMMAND="ssh -i ~/.ssh/${p.ssh_key}"\n`;
+      navigator.clipboard.writeText(cmd);
+      const btn = document.getElementById('btnApplyTerminal');
+      if (btn) {
+        btn.innerHTML = '<span class="text-[#3fb950]">✓ Commands Copied!</span>';
+        setTimeout(() => { btn.innerHTML = '⚡ Apply to Terminal'; }, 2000);
+      }
+    }
+
+    function unlinkMapping(id) {
+      if (confirm('Unlink this folder scope mapping?')) {
+        state.mappings = state.mappings.filter(m => m.id !== id);
+        renderMappingsList();
+        resolveTestPath();
+      }
+    }
+
+    function deleteProfile(id) {
+      if (confirm('Delete this profile?')) {
+        state.profiles = state.profiles.filter(p => p.id !== id);
+        if (state.activeProfileId === id && state.profiles[0]) {
+          state.activeProfileId = state.profiles[0].id;
+        }
+        localStorage.setItem('gitswitch_profiles', JSON.stringify(state.profiles));
+        renderDialTicks();
+        renderActiveCard();
+        renderProfilesList();
+      }
+    }
+
+    function syncKeychain() {
+      const btn = document.getElementById('syncKeychainBtn');
+      btn.textContent = 'Syncing...';
+      setTimeout(() => {
+        btn.textContent = '✓ Synced';
+        setTimeout(() => { btn.textContent = '↻ Sync Keychain'; }, 2000);
+      }, 500);
+    }
+
+    function flushInactive() {
+      const btn = document.getElementById('flushInactiveBtn');
+      btn.textContent = 'Flushed';
+      setTimeout(() => { btn.textContent = 'Flush Inactive'; }, 1500);
+    }
+
+    // Modals
+    function openAddModal() {
+      const sel = document.getElementById('selectSSHKey');
+      sel.innerHTML = state.sshKeys.map(k => `<option value="${k.name}">${k.name} (${k.algorithm})</option>`).join('');
+      document.getElementById('saveStreamLogs').classList.add('hidden');
+      document.getElementById('addModalOverlay').classList.remove('hidden');
+    }
+
+    function closeAddModal() {
+      document.getElementById('addModalOverlay').classList.add('hidden');
+    }
+
+    async function handleSaveIdentity(e) {
+      e.preventDefault();
+      const name = document.getElementById('inputProfileName').value.trim();
+      const user = document.getElementById('inputUsername').value.trim();
+      const mail = document.getElementById('inputEmail').value.trim();
+      const key = document.getElementById('selectSSHKey').value;
+      const scopes = document.getElementById('inputScopePaths').value.split(',').map(s=>s.trim()).filter(Boolean);
+
+      const logs = document.getElementById('saveStreamLogs');
+      logs.classList.remove('hidden');
+      logs.innerHTML = `
+        <div class="text-[#3fb950] font-bold border-b border-[#141e2a] pb-1">IDENTITY INITIALIZATION STREAM</div>
+        <div>> Initializing profile directory for [${name}]... OK</div>
+      `;
+
+      await new Promise(r => setTimeout(r, 120));
+      logs.innerHTML += `<div>> Compiling gitdir:includeIf hook stanza... OK</div>`;
+
+      await new Promise(r => setTimeout(r, 120));
+      logs.innerHTML += `<div>> Writing ~/.gitconfig include hooks... [0.12ms] OK</div>`;
+
+      await new Promise(r => setTimeout(r, 120));
+      logs.innerHTML += `<div>> Linking SSH identity in ~/.ssh/config... [0.08ms] OK</div>`;
+
+      const id = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+      const newP = {
+        id,
+        name,
+        username: user,
+        email: mail,
+        ssh_key: key,
+        scope_paths: scopes,
+        color: '#38bdf8',
+        tag: 'client',
+        shortcut: '⌘' + (state.profiles.length + 1)
+      };
+
+      state.profiles.push(newP);
+      scopes.forEach(s => {
+        state.mappings.push({
+          id: `${id}-${s.replace(/[^a-z0-9]/gi, '_')}`,
+          path_pattern: s,
+          profile_id: id,
+          profile_name: name,
+          ssh_key: key
+        });
+      });
+
+      try {
+        localStorage.setItem('gitswitch_profiles', JSON.stringify(state.profiles));
+      } catch (e) {}
+
+      await new Promise(r => setTimeout(r, 300));
+      logs.innerHTML += `<div class="text-emerald-400 font-bold">✓ Identity [${name}] successfully linked!</div>`;
+
+      setTimeout(() => {
+        closeAddModal();
+        switchProfile(id);
+      }, 500);
+    }
+
+    // Config Inspector Modal
+    let activeConfigTab = 'gitconfig';
+    function openConfigModal() {
+      document.getElementById('configModalOverlay').classList.remove('hidden');
+      switchConfigTab('gitconfig');
+    }
+
+    function closeConfigModal() {
+      document.getElementById('configModalOverlay').classList.add('hidden');
+    }
+
+    function switchConfigTab(tab) {
+      activeConfigTab = tab;
+      const btnG = document.getElementById('tabBtnGitConfig');
+      const btnS = document.getElementById('tabBtnSSHConfig');
+      const disp = document.getElementById('configContentDisplay');
+
+      btnG.className = tab === 'gitconfig' ? 'px-3 py-1 rounded bg-[#14202d] text-[#3fb950] border border-[#223348]' : 'px-3 py-1 rounded text-slate-400 hover:text-white';
+      btnS.className = tab === 'sshconfig' ? 'px-3 py-1 rounded bg-[#14202d] text-[#3fb950] border border-[#223348]' : 'px-3 py-1 rounded text-slate-400 hover:text-white';
+
+      const activeP = state.profiles.find(x => x.id === state.activeProfileId) || state.profiles[0];
+
+      if (tab === 'gitconfig') {
+        let content = `# GitSwitch Managed Global Active Identity\n[user]\n\tname = ${activeP.username}\n\temail = ${activeP.email}\n`;
+        if (activeP.signing_key) content += `\tsigningkey = ${activeP.signing_key}\n`;
+        content += `[core]\n\tsshCommand = ssh -i ~/.ssh/${activeP.ssh_key}\n\n# >>> GitSwitch IncludeIf Hooks (v1.8.0) >>>\n`;
+        state.profiles.forEach(p => {
+          (p.scope_paths || []).forEach(sc => {
+            content += `[includeIf "gitdir:${sc.replace(/\*$/, '')}"]\n\tpath = ~/.gitconfig-${p.id}\n`;
+          });
+        });
+        content += `# <<< GitSwitch IncludeIf Hooks <<<\n`;
+        disp.textContent = content;
+      } else {
+        let content = `# GitSwitch Managed Block - Start (v1.8.0)\nHost github.com\n    HostName github.com\n    User git\n    IdentityFile ~/.ssh/${activeP.ssh_key}\n    IdentitiesOnly yes\n\n`;
+        state.profiles.forEach(p => {
+          content += `Host github.com-${p.id}\n    HostName github.com\n    User git\n    IdentityFile ~/.ssh/${p.ssh_key}\n    IdentitiesOnly yes\n\n`;
+        });
+        content += `# GitSwitch Managed Block - End\n`;
+        disp.textContent = content;
+      }
+    }
+
+    function copyCurrentConfigFile() {
+      const disp = document.getElementById('configContentDisplay');
+      navigator.clipboard.writeText(disp.textContent);
+      const btn = document.getElementById('copyConfigBtn');
+      btn.innerHTML = '<span class="text-[#3fb950]">✓ Copied!</span>';
+      setTimeout(() => { btn.innerHTML = '📋 Copy File'; }, 1800);
+    }
+
+    function reloadState() {
+      init();
+    }
+
+    window.onload = init;
+  </script>
+</body>
+</html>
