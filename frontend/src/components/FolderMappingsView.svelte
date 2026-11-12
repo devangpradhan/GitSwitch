@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { folderMappings, currentValidation, validatePath, deleteFolderMapping, saveFolderMapping, loadFolderMappings } from '../stores/mappings';
-  import { profiles, activeProfileId } from '../stores/profiles';
+  import { profiles, activeProfile, activeProfileId } from '../stores/profiles';
+  import { appStatus, loadAppStatus } from '../stores/status';
   import { SetDaemonMode } from '../wailsjs/go/main/App';
   import { Button, Badge, Switch, Dialog, Select } from './ui';
   import type { FolderMapping } from '../types';
@@ -12,6 +13,13 @@
 
   let newPathPattern = '~/Projects/NewClient/*';
   let selectedProfileId = 'work';
+
+  $: daemonStrict = $appStatus.daemon_mode !== 'PASSIVE_DISPATCH';
+
+  async function handleToggleDaemon(e: CustomEvent<boolean>) {
+    await SetDaemonMode(e.detail);
+    await loadAppStatus();
+  }
 
   onMount(() => {
     loadFolderMappings();
@@ -80,7 +88,7 @@
         <span class="text-slate-400 text-[11px]">Daemon Switcher</span>
         <span class="text-[#3fb950] font-semibold">{daemonStrict ? 'STRICT_DISPATCH' : 'PASSIVE_DISPATCH'}</span>
       </div>
-      <Switch bind:checked={daemonStrict} on:change={() => SetDaemonMode(daemonStrict)} />
+      <Switch bind:checked={daemonStrict} ariaLabel="Toggle strict dispatch daemon mode" on:change={handleToggleDaemon} />
     </div>
   </div>
 
@@ -109,7 +117,7 @@
         </div>
       {:else}
         <div class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#182330] text-slate-400 border border-[#233547]">
-          <span>Fallback Default (Work)</span>
+          <span>Fallback Default ({$activeProfile?.name || 'Global'})</span>
         </div>
       {/if}
     </div>
@@ -202,8 +210,9 @@
 >
   <form on:submit|preventDefault={handleCreateMapping} class="space-y-4 font-mono text-xs">
     <div>
-      <label class="block text-slate-300 mb-1.5 font-medium">DIRECTORY SCOPE PATTERN</label>
+      <label for="newPathPattern" class="block text-slate-300 mb-1.5 font-medium">DIRECTORY SCOPE PATTERN</label>
       <input 
+        id="newPathPattern"
         type="text" 
         bind:value={newPathPattern}
         required
@@ -214,8 +223,9 @@
     </div>
 
     <div>
-      <label class="block text-slate-300 mb-1.5 font-medium">TARGET IDENTITY</label>
+      <label for="targetIdentity" class="block text-slate-300 mb-1.5 font-medium">TARGET IDENTITY</label>
       <Select 
+        id="targetIdentity"
         bind:value={selectedProfileId}
         options={profileOptions}
       />

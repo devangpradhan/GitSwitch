@@ -86,6 +86,20 @@
     }
   }
 
+  function handleDialKeydown(e: KeyboardEvent) {
+    if ($profiles.length === 0) return;
+    const currentIdx = Math.max(0, $profiles.findIndex(p => p.id === $activeProfileId));
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = $profiles[(currentIdx + 1) % $profiles.length];
+      if (next) switchProfile(next.id);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prev = $profiles[(currentIdx - 1 + $profiles.length) % $profiles.length];
+      if (prev) switchProfile(prev.id);
+    }
+  }
+
   // Pre-calculated tick positions around the dial (percentage based)
   function getTickCoordinates(index: number, total: number) {
     const angleDeg = getAngleForIndex(index, total);
@@ -164,14 +178,15 @@
     {#each $profiles as p, i}
       {@const coords = getTickCoordinates(i, $profiles.length)}
       {@const isActive = p.id === $activeProfileId}
-      <div 
-        class="tick-point absolute cursor-pointer group z-20 transition-all duration-300"
+      <button
+        type="button"
+        class="tick-point absolute cursor-pointer group z-20 transition-all duration-300 bg-transparent border-0 p-0 focus:outline-none"
         style="left: {coords.x}%; top: {coords.y}%; transform: translate(-50%, -50%);"
         on:click={() => handleTickClick(p)}
       >
         <div class="flex flex-col items-center">
           <div 
-            class="tick-badge px-2.5 py-1 rounded-full font-mono text-[11px] font-medium flex items-center gap-1.5 transition-all shadow-md
+            class="tick-badge px-2.5 py-1 rounded-full font-mono text-[11px] font-medium flex items-center gap-1.5 transition-all shadow-md whitespace-nowrap
               {isActive 
                 ? 'bg-[#101824] border text-white font-bold ring-2 ring-primary/20' 
                 : 'bg-[#0d141e] border border-[#223348] text-slate-400 hover:text-slate-200 hover:border-slate-500'}"
@@ -181,13 +196,13 @@
               class="w-2 h-2 rounded-full {isActive ? 'animate-pulse' : 'bg-slate-600'}"
               style="{isActive ? `background-color: ${p.color || '#3fb950'};` : ''}"
             ></span>
-            <span>0{i + 1}. {p.name.toUpperCase()}</span>
+            <span>{String(i + 1).padStart(2, '0')}. {p.name.toUpperCase()}</span>
           </div>
           <span class="text-[10px] font-mono mt-1 opacity-80 {isActive ? 'text-emerald-400 font-semibold' : 'text-slate-500'}">
             {p.tag || p.username}
           </span>
         </div>
-      </div>
+      </button>
     {/each}
 
     <!-- Rotary Knob Housing (Outer Chassis) -->
@@ -200,9 +215,16 @@
         <div 
           bind:this={dialElement}
           id="rotaryDial" 
-          class="dial-cap w-full h-full rounded-full relative flex items-center justify-center cursor-grab active:cursor-grabbing"
-          style="transform: rotate({currentRotation}deg);"
+          role="slider"
+          tabindex="0"
+          aria-label="Profile rotary selector"
+          aria-valuemin={0}
+          aria-valuemax={Math.max(0, $profiles.length - 1)}
+          aria-valuenow={Math.max(0, $profiles.findIndex(p => p.id === $activeProfileId))}
+          class="dial-cap w-full h-full rounded-full relative flex items-center justify-center cursor-grab active:cursor-grabbing focus:outline-none focus:ring-2 focus:ring-[#3fb950]/40"
+          style="transform: rotate({currentRotation}deg); {isDragging ? 'transition: none;' : ''}"
           on:mousedown={handleMouseDown}
+          on:keydown={handleDialKeydown}
         >
           
           <!-- Dial Needle / Position Indicator Notch (VST style) -->

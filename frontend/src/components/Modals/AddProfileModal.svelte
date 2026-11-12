@@ -25,8 +25,10 @@
 
   let isSaving = false;
   let saveLogs: string[] = [];
+  let wasOpen = false;
 
-  $: if (open) {
+  $: if (open && !wasOpen) {
+    wasOpen = true;
     saveLogs = [];
     if (editingProfile) {
       profileName = editingProfile.name;
@@ -38,7 +40,20 @@
       color = editingProfile.color || '#3fb950';
       tag = editingProfile.tag || 'identity';
       keyMode = 'existing';
+    } else {
+      profileName = '';
+      username = '';
+      email = '';
+      selectedSSHKey = $sshKeys[0]?.name || 'id_ed25519_work';
+      scopePaths = '~/Developer/Projects/*';
+      signingKey = '';
+      color = '#38bdf8';
+      tag = 'agency-dev';
+      keyMode = 'existing';
+      newKeyName = 'id_ed25519_custom';
     }
+  } else if (!open && wasOpen) {
+    wasOpen = false;
   }
 
   $: selectedKeyObj = $sshKeys.find(k => k.name === selectedSSHKey);
@@ -134,7 +149,7 @@
 >
   <svelte:fragment slot="badge">
     <span class="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-[#3fb950]/15 text-[#3fb950] border border-[#3fb950]/30">
-      v1.8.0
+      v1.0.0
     </span>
   </svelte:fragment>
 
@@ -142,13 +157,14 @@
     <!-- Field 1: Profile Identifier & Color Tag -->
     <div>
       <div class="flex items-center justify-between mb-1.5 font-mono text-xs">
-        <label class="font-medium text-slate-300 flex items-center gap-1.5">
+        <label for="profileNameInput" class="font-medium text-slate-300 flex items-center gap-1.5">
           <span class="text-[#3fb950]">01.</span> PROFILE IDENTIFIER
         </label>
         <span class="text-[11px] text-slate-500">UI alias / workspace label</span>
       </div>
       <div class="relative">
         <input 
+          id="profileNameInput"
           bind:value={profileName}
           type="text" 
           required
@@ -176,7 +192,7 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div>
         <div class="flex items-center justify-between mb-1.5 font-mono text-xs">
-          <label class="font-medium text-slate-300 flex items-center gap-1.5">
+          <label for="githubUsernameInput" class="font-medium text-slate-300 flex items-center gap-1.5">
             <span class="text-[#3fb950]">02.</span> GITHUB USERNAME
           </label>
           <span class="text-[10px] text-slate-500">user.name</span>
@@ -184,6 +200,7 @@
         <div class="relative">
           <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 font-mono text-xs">@</div>
           <input 
+            id="githubUsernameInput"
             bind:value={username}
             type="text" 
             required
@@ -195,13 +212,14 @@
 
       <div>
         <div class="flex items-center justify-between mb-1.5 font-mono text-xs">
-          <label class="font-medium text-slate-300 flex items-center gap-1.5">
+          <label for="committingEmailInput" class="font-medium text-slate-300 flex items-center gap-1.5">
             <span class="text-[#3fb950]">03.</span> COMMITTING EMAIL
           </label>
           <span class="text-[10px] text-slate-500">user.email</span>
         </div>
         <div class="relative">
           <input 
+            id="committingEmailInput"
             bind:value={email}
             type="email" 
             required
@@ -215,7 +233,7 @@
     <!-- Field 3: Associated SSH Key Selector -->
     <div>
       <div class="flex items-center justify-between mb-1.5 font-mono text-xs">
-        <label class="font-medium text-slate-300 flex items-center gap-1.5">
+        <label for="associatedSshKeySelect" class="font-medium text-slate-300 flex items-center gap-1.5">
           <span class="text-[#3fb950]">04.</span> ASSOCIATED SSH KEY
         </label>
         <div class="flex items-center gap-1 text-[11px]">
@@ -239,6 +257,7 @@
       {#if keyMode === 'existing'}
         <div class="space-y-2">
           <Select 
+            id="associatedSshKeySelect"
             bind:value={selectedSSHKey}
             options={sshOptions}
             placeholder="Select SSH Key"
@@ -277,13 +296,14 @@
     <!-- Field 4: Scope Directory / Auto-Switch includeIf Paths -->
     <div>
       <div class="flex items-center justify-between mb-1.5 font-mono text-xs">
-        <label class="font-medium text-slate-300 flex items-center gap-1.5">
+        <label for="scopePathsInput" class="font-medium text-slate-300 flex items-center gap-1.5">
           <span class="text-[#3fb950]">05.</span> AUTO-SWITCH SCOPE PATHS
         </label>
         <span class="text-[11px] text-[#38bdf8]">gitdir:includeIf hook</span>
       </div>
       <div class="relative">
         <input 
+          id="scopePathsInput"
           bind:value={scopePaths}
           type="text" 
           required

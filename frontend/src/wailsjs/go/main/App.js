@@ -306,7 +306,7 @@ export function GetStatus() {
     return window['go']['main']['App']['GetStatus']();
   }
   return Promise.resolve({
-    version: '1.8.0',
+    version: '1.0.0',
     pid: 49201,
     active_profile: defaultProfiles[0],
     daemon_mode: 'STRICT_DISPATCH',

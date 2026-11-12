@@ -1,6 +1,6 @@
 [package]
 name = "gitswitch"
-version = "1.8.0"
+version = "1.0.0"
 description = "GitSwitch — Precision Offline-First Git & SSH Identity Switcher"
 authors = ["GitSwitch"]
 edition = "2021"
@@ -8,6 +8,14 @@ edition = "2021"
 [lib]
 name = "gitswitch_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
+
+[[bin]]
+name = "gitswitch"
+path = "src/main.rs"
+
+[[bin]]
+name = "gitswitch-mcp"
+path = "src/bin/gitswitch-mcp.rs"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

@@ -13,18 +13,19 @@
   import { loadSSHKeys } from './stores/ssh';
   import { loadFolderMappings } from './stores/mappings';
   import { appStatus, loadAppStatus } from './stores/status';
+  import type { Profile } from './types';
 
   let currentTab: string = 'dashboard';
   let isAddModalOpen: boolean = false;
   let isConfigModalOpen: boolean = false;
-  let editingProfile: import('./types').Profile | null = null;
+  let editingProfile: Profile | null = null;
 
   function openNewProfileModal() {
     editingProfile = null;
     isAddModalOpen = true;
   }
 
-  function openEditProfileModal(profile: import('./types').Profile) {
+  function openEditProfileModal(profile: Profile) {
     editingProfile = profile;
     isAddModalOpen = true;
   }
@@ -68,10 +69,10 @@
 </script>
 
 <!-- App Window Wrapper -->
-<div class="min-h-screen text-slate-100 flex flex-col justify-between antialiased selection:bg-[#3fb950]/30 selection:text-white bg-[#090e15]">
+<div class="h-screen overflow-hidden border border-[#182330] text-slate-100 flex flex-col justify-between antialiased selection:bg-[#3fb950]/30 selection:text-white bg-[#090e15]">
   
   <!-- Outer Window Shell -->
-  <div class="w-full flex-1 flex flex-col">
+  <div class="w-full flex-1 flex flex-col min-h-0">
     <!-- Window Titlebar -->
     <TitleBar 
       activeTab={currentTab}
@@ -81,7 +82,7 @@
     />
 
     <!-- Main Dynamic Canvas -->
-    <main class="flex-1 p-4 md:p-8 flex flex-col items-center justify-start relative overflow-y-auto">
+    <main class="flex-1 min-h-0 p-4 md:p-8 flex flex-col items-center justify-start relative overflow-y-auto">
       <!-- Subtle Background Grid & Terminal Aesthetics -->
       <div class="absolute inset-0 pointer-events-none opacity-20">
         <svg class="w-full h-full" xmlns="http://www.w3.org/2000/svg">
@@ -128,7 +129,7 @@
     </main>
 
     <!-- Bottom Telemetry Status Deck Footer -->
-    <footer class="h-10 bg-[#060b10] border-t border-[#162230] px-5 flex items-center justify-between font-mono text-xs text-slate-400 select-none">
+    <footer class="h-10 shrink-0 bg-[#060b10] border-t border-[#162230] px-5 flex items-center justify-between font-mono text-xs text-slate-400 select-none">
       <div class="flex items-center gap-6">
         <div class="flex items-center gap-1.5">
           <span class="text-slate-500">config:</span>

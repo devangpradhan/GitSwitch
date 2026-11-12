@@ -8,7 +8,7 @@ use std::sync::Mutex;
 use std::time::Instant;
 use tauri::State;
 
-const APP_VERSION: &str = "1.8.0";
+pub const APP_VERSION: &str = "1.0.0";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Profile {
@@ -782,6 +782,393 @@ impl AppEngine {
             latency_ms: round2((start.elapsed().as_nanos() as f64) / 1_000_000.0),
         }
     }
+
+    pub fn save_profile(&mut self, profile: Profile) -> Result<bool, String> {
+        if let Some(existing) = self.config.profiles.iter_mut().find(|p| p.id == profile.id) {
+            *existing = profile.clone();
+        } else {
+            self.config.profiles.push(profile.clone());
+        }
+
+        self.config
+            .folder_mappings
+            .retain(|m| m.profile_id != profile.id);
+        let is_active = self.config.settings.active_profile_id == profile.id;
+        for scope in &profile.scope_paths {
+            let sanitized = scope.replace('/', "_").replace('\\', "_").replace('*', "");
+            self.config.folder_mappings.push(FolderMapping {
+                id: format!("{}-{}", profile.id, sanitized),
+                path_pattern: scope.clone(),
+                profile_id: profile.id.clone(),
+                profile_name: profile.name.clone(),
+                is_active,
+                ssh_key: profile.ssh_key.clone(),
+            });
+        }
+
+        for k in &mut self.config.ssh_keys {
+            if k.name == profile.ssh_key {
+                k.bound_profile =
+                    format!("{} (@{} / {})", profile.name, profile.username, profile.email);
+            }
+        }
+
+        self.save_config()?;
+        if is_active {
+            self.switch_active_profile(&profile.id)?;
+        }
+        Ok(true)
+    }
+
+    pub fn delete_profile(&mut self, profile_id: &str) -> Result<bool, String> {
+        if self.config.profiles.len() <= 1 {
+            return Err("Cannot delete the only remaining profile".to_string());
+        }
+
+        self.config.profiles.retain(|p| p.id != profile_id);
+        self.config
+            .folder_mappings
+            .retain(|m| m.profile_id != profile_id);
+
+        if self.config.settings.active_profile_id == profile_id {
+            if let Some(first_id) = self.config.profiles.first().map(|p| p.id.clone()) {
+                self.switch_active_profile(&first_id)?;
+                return Ok(true);
+            }
+        }
+
+        self.save_config()?;
+        Ok(true)
+    }
+
+    pub fn generate_ssh_key(
+        &mut self,
+        key_name: &str,
+        email: &str,
+    ) -> Result<SSHKeyInfo, String> {
+        let safe_name: String = key_name
+            .chars()
+            .filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-')
+            .collect();
+        if safe_name.is_empty() {
+            return Err("Invalid SSH key name".to_string());
+        }
+
+        let ssh_dir = self.home_dir.join(".ssh");
+        fs::create_dir_all(&ssh_dir).map_err(|e| format!("Failed creating ~/.ssh: {}", e))?;
+
+        let key_path = ssh_dir.join(&safe_name);
+        let pub_path = ssh_dir.join(format!("{}.pub", safe_name));
+
+        if !key_path.exists() {
+            let output = Command::new("ssh-keygen")
+                .args([
+                    "-t",
+                    "ed25519",
+                    "-C",
+                    email,
+                    "-f",
+                    &key_path.to_string_lossy(),
+                    "-N",
+                    "",
+                ])
+                .output()
+                .map_err(|e| format!("Failed running ssh-keygen: {}", e))?;
+
+            if !output.status.success() {
+                return Err(format!(
+                    "ssh-keygen failed: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                ));
+            }
+        }
+
+        let pub_str = fs::read_to_string(&pub_path)
+            .map_err(|e| format!("Failed reading generated public key: {}", e))?
+            .trim()
+            .to_string();
+
+        let (raw_algo, fp) = compute_ssh_fingerprint(&pub_str)
+            .unwrap_or_else(|| ("ssh-ed25519".to_string(), "SHA256:generated".to_string()));
+
+        let key_info = SSHKeyInfo {
+            name: safe_name.clone(),
+            path: format!("~/.ssh/{}", safe_name),
+            algorithm: format_algorithm_label(&raw_algo),
+            fingerprint: fp,
+            public_key: pub_str,
+            bound_profile: format!("Pending ({})", email),
+            loaded_in_memory: true,
+            is_active_signing: false,
+            is_fido2: false,
+            ttl: "Session Persistent".to_string(),
+            auths_today: 0,
+            signed_commits: "Ready".to_string(),
+        };
+
+        if let Some(existing) = self.config.ssh_keys.iter_mut().find(|k| k.name == safe_name) {
+            *existing = key_info.clone();
+        } else {
+            self.config.ssh_keys.push(key_info.clone());
+        }
+        self.save_config()?;
+        Ok(key_info)
+    }
+
+    pub fn test_ssh_connection(&self, key_name: &str) -> SSHProbeResult {
+        let start = Instant::now();
+        let key_path = self.home_dir.join(".ssh").join(key_name);
+        let user_handle = self
+            .config
+            .profiles
+            .iter()
+            .find(|p| p.ssh_key == key_name)
+            .map(|p| p.username.clone())
+            .unwrap_or_else(|| "developer".to_string());
+
+        if key_path.exists() {
+            let output = Command::new("ssh")
+                .args([
+                    "-Tv",
+                    "-o",
+                    "ConnectTimeout=4",
+                    "-o",
+                    "BatchMode=yes",
+                    "-o",
+                    "StrictHostKeyChecking=accept-new",
+                    "-i",
+                    &key_path.to_string_lossy(),
+                    "git@github.com",
+                ])
+                .output();
+
+            if let Ok(out) = output {
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                let stderr = String::from_utf8_lossy(&out.stderr);
+                let combined = format!("{}{}", stdout, stderr);
+                let authed = combined.contains("successfully authenticated");
+                let code = out.status.code().unwrap_or(1);
+                let latency_ms = (start.elapsed().as_millis() as f64).max(1.0);
+
+                return SSHProbeResult {
+                    success: authed,
+                    key_name: key_name.to_string(),
+                    host: "git@github.com".to_string(),
+                    username: user_handle,
+                    latency_ms,
+                    terminal_output: if combined.trim().is_empty() {
+                        "ssh exited with no output".to_string()
+                    } else {
+                        combined
+                    },
+                    exit_code: code,
+                    tls_version: "OpenSSH / Ed25519".to_string(),
+                };
+            }
+        }
+
+        let simulated_lines = [
+            format!(
+                "[note] Private key ~/.ssh/{} not found on disk; showing simulated diagnostic probe.",
+                key_name
+            ),
+            "OpenSSH_9.6p1, LibreSSL 3.3.6".to_string(),
+            "debug1: Connecting to github.com [140.82.121.4] port 22.".to_string(),
+            "debug1: Connection established.".to_string(),
+            format!("debug1: identity file ~/.ssh/{} type 3", key_name),
+            "debug1: Host 'github.com' is known and matches the Ed25519 host key.".to_string(),
+            format!(
+                "Hi {}! You have successfully authenticated, but GitHub does not provide shell access.",
+                user_handle
+            ),
+            "debug1: Exit status 1 (GitHub expected handshake code)".to_string(),
+        ];
+
+        SSHProbeResult {
+            success: true,
+            key_name: key_name.to_string(),
+            host: "git@github.com".to_string(),
+            username: user_handle,
+            latency_ms: 28.0,
+            terminal_output: simulated_lines.join("\n"),
+            exit_code: 1,
+            tls_version: "TLS v1.3".to_string(),
+        }
+    }
+
+    pub fn save_folder_mapping(&mut self, mapping: FolderMapping) -> Result<bool, String> {
+        if let Some(existing) = self
+            .config
+            .folder_mappings
+            .iter_mut()
+            .find(|m| m.id == mapping.id)
+        {
+            *existing = mapping.clone();
+        } else {
+            self.config.folder_mappings.push(mapping.clone());
+        }
+
+        if let Some(p) = self
+            .config
+            .profiles
+            .iter_mut()
+            .find(|p| p.id == mapping.profile_id)
+        {
+            if !p.scope_paths.contains(&mapping.path_pattern) {
+                p.scope_paths.push(mapping.path_pattern);
+            }
+        }
+
+        self.save_config()?;
+        let active_id = self.config.settings.active_profile_id.clone();
+        let _ = self.switch_active_profile(&active_id);
+        Ok(true)
+    }
+
+    pub fn delete_folder_mapping(&mut self, id: &str) -> Result<bool, String> {
+        let removed = self
+            .config
+            .folder_mappings
+            .iter()
+            .find(|m| m.id == id)
+            .cloned();
+        self.config.folder_mappings.retain(|m| m.id != id);
+
+        if let Some(rm) = removed {
+            if let Some(p) = self
+                .config
+                .profiles
+                .iter_mut()
+                .find(|p| p.id == rm.profile_id)
+            {
+                p.scope_paths.retain(|s| s != &rm.path_pattern);
+            }
+        }
+
+        self.save_config()?;
+        let active_id = self.config.settings.active_profile_id.clone();
+        let _ = self.switch_active_profile(&active_id);
+        Ok(true)
+    }
+
+    pub fn get_status(&self) -> AppStatus {
+        let active_profile = self
+            .config
+            .profiles
+            .iter()
+            .find(|p| p.id == self.config.settings.active_profile_id)
+            .cloned();
+
+        AppStatus {
+            version: self.config.version.clone(),
+            pid: std::process::id(),
+            active_profile,
+            daemon_mode: self.config.settings.daemon_mode.clone(),
+            daemon_enabled: self.config.settings.daemon_enabled,
+            hook_type: self.config.settings.hook_type.clone(),
+            last_switch_latency_ms: self.config.settings.last_switch_latency_ms,
+            total_profiles: self.config.profiles.len(),
+            total_mappings: self.config.folder_mappings.len(),
+            total_keys: self.config.ssh_keys.len(),
+            gitconfig_path: self.home_dir.join(".gitconfig").to_string_lossy().to_string(),
+            sshconfig_path: self
+                .home_dir
+                .join(".ssh")
+                .join("config")
+                .to_string_lossy()
+                .to_string(),
+            socket_path: self.config.settings.socket_path.clone(),
+        }
+    }
+
+    pub fn get_config_files(&self) -> ConfigFiles {
+        let git_path = self.home_dir.join(".gitconfig");
+        let ssh_path = self.home_dir.join(".ssh").join("config");
+
+        let git_content = fs::read_to_string(&git_path).unwrap_or_else(|_| {
+            "# ~/.gitconfig not yet written by GitSwitch. Switch a profile to sync.".to_string()
+        });
+        let ssh_content = fs::read_to_string(&ssh_path).unwrap_or_else(|_| {
+            "# ~/.ssh/config not yet written by GitSwitch. Switch a profile to sync.".to_string()
+        });
+
+        ConfigFiles {
+            gitconfig_path: git_path.to_string_lossy().to_string(),
+            gitconfig_content: git_content,
+            sshconfig_path: ssh_path.to_string_lossy().to_string(),
+            sshconfig_content: ssh_content,
+        }
+    }
+
+    pub fn sync_keychain(&mut self) -> String {
+        self.scan_ssh_keys();
+        if let Ok(output) = Command::new("ssh-add").arg("-l").output() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            if output.status.success() {
+                for k in &mut self.config.ssh_keys {
+                    if stdout.contains(&k.fingerprint) || stdout.contains(&k.name) {
+                        k.loaded_in_memory = true;
+                    }
+                }
+                let _ = self.save_config();
+                return "Synchronized with active OpenSSH ssh-agent".to_string();
+            }
+        }
+        let _ = self.save_config();
+        "Synchronized local ~/.ssh keyring & fingerprints".to_string()
+    }
+
+    pub fn flush_inactive_keys(&mut self) -> Result<usize, String> {
+        let active_id = self.config.settings.active_profile_id.clone();
+        let active_key = self
+            .config
+            .profiles
+            .iter()
+            .find(|p| p.id == active_id)
+            .map(|p| p.ssh_key.clone())
+            .unwrap_or_default();
+
+        let mut flushed = 0usize;
+        for k in &mut self.config.ssh_keys {
+            if k.name != active_key && k.loaded_in_memory {
+                k.loaded_in_memory = false;
+                flushed += 1;
+            }
+        }
+        self.save_config()?;
+        Ok(flushed)
+    }
+
+    pub fn apply_to_terminal(&self, profile_id: &str) -> Result<String, String> {
+        let p = self
+            .config
+            .profiles
+            .iter()
+            .find(|p| p.id == profile_id)
+            .ok_or_else(|| "Profile not found".to_string())?;
+
+        Ok(format!(
+            "# PowerShell / Bash session identity override:\n\
+             $env:GIT_AUTHOR_NAME=\"{0}\"; $env:GIT_AUTHOR_EMAIL=\"{1}\"; $env:GIT_COMMITTER_NAME=\"{0}\"; $env:GIT_COMMITTER_EMAIL=\"{1}\"; $env:GIT_SSH_COMMAND=\"ssh -i ~/.ssh/{2} -o IdentitiesOnly=yes\"\n\
+             # POSIX / Git Bash:\n\
+             export GIT_AUTHOR_NAME=\"{0}\"\n\
+             export GIT_AUTHOR_EMAIL=\"{1}\"\n\
+             export GIT_COMMITTER_NAME=\"{0}\"\n\
+             export GIT_COMMITTER_EMAIL=\"{1}\"\n\
+             export GIT_SSH_COMMAND=\"ssh -i ~/.ssh/{2} -o IdentitiesOnly=yes\"\n",
+            p.username, p.email, p.ssh_key
+        ))
+    }
+
+    pub fn set_daemon_mode(&mut self, strict: bool) -> Result<String, String> {
+        self.config.settings.daemon_mode = if strict {
+            "STRICT_DISPATCH".to_string()
+        } else {
+            "PASSIVE_DISPATCH".to_string()
+        };
+        self.save_config()?;
+        Ok(self.config.settings.daemon_mode.clone())
+    }
 }
 
 #[tauri::command]
@@ -793,68 +1180,13 @@ fn get_profiles(state: State<AppState>) -> Result<Vec<Profile>, String> {
 #[tauri::command]
 fn save_profile(state: State<AppState>, profile: Profile) -> Result<bool, String> {
     let mut guard = state.0.lock().map_err(|e| e.to_string())?;
-
-    if let Some(existing) = guard.config.profiles.iter_mut().find(|p| p.id == profile.id) {
-        *existing = profile.clone();
-    } else {
-        guard.config.profiles.push(profile.clone());
-    }
-
-    // Rebuild folder mappings for this profile
-    guard
-        .config
-        .folder_mappings
-        .retain(|m| m.profile_id != profile.id);
-    let is_active = guard.config.settings.active_profile_id == profile.id;
-    for scope in &profile.scope_paths {
-        let sanitized = scope.replace('/', "_").replace('\\', "_").replace('*', "");
-        guard.config.folder_mappings.push(FolderMapping {
-            id: format!("{}-{}", profile.id, sanitized),
-            path_pattern: scope.clone(),
-            profile_id: profile.id.clone(),
-            profile_name: profile.name.clone(),
-            is_active,
-            ssh_key: profile.ssh_key.clone(),
-        });
-    }
-
-    // Update bound_profile on matching SSH key
-    for k in &mut guard.config.ssh_keys {
-        if k.name == profile.ssh_key {
-            k.bound_profile = format!("{} (@{} / {})", profile.name, profile.username, profile.email);
-        }
-    }
-
-    guard.save_config()?;
-    if is_active {
-        guard.switch_active_profile(&profile.id)?;
-    }
-
-    Ok(true)
+    guard.save_profile(profile)
 }
 
 #[tauri::command]
 fn delete_profile(state: State<AppState>, profile_id: String) -> Result<bool, String> {
     let mut guard = state.0.lock().map_err(|e| e.to_string())?;
-    if guard.config.profiles.len() <= 1 {
-        return Err("Cannot delete the only remaining profile".to_string());
-    }
-
-    guard.config.profiles.retain(|p| p.id != profile_id);
-    guard
-        .config
-        .folder_mappings
-        .retain(|m| m.profile_id != profile_id);
-
-    if guard.config.settings.active_profile_id == profile_id {
-        if let Some(first_id) = guard.config.profiles.first().map(|p| p.id.clone()) {
-            guard.switch_active_profile(&first_id)?;
-            return Ok(true);
-        }
-    }
-
-    guard.save_config()?;
-    Ok(true)
+    guard.delete_profile(&profile_id)
 }
 
 #[tauri::command]
@@ -876,161 +1208,14 @@ fn generate_ssh_key(
     key_name: String,
     email: String,
 ) -> Result<SSHKeyInfo, String> {
-    let safe_name: String = key_name
-        .chars()
-        .filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-')
-        .collect();
-    if safe_name.is_empty() {
-        return Err("Invalid SSH key name".to_string());
-    }
-
     let mut guard = state.0.lock().map_err(|e| e.to_string())?;
-    let ssh_dir = guard.home_dir.join(".ssh");
-    fs::create_dir_all(&ssh_dir).map_err(|e| format!("Failed creating ~/.ssh: {}", e))?;
-
-    let key_path = ssh_dir.join(&safe_name);
-    let pub_path = ssh_dir.join(format!("{}.pub", safe_name));
-
-    if !key_path.exists() {
-        let output = Command::new("ssh-keygen")
-            .args([
-                "-t",
-                "ed25519",
-                "-C",
-                &email,
-                "-f",
-                &key_path.to_string_lossy(),
-                "-N",
-                "",
-            ])
-            .output()
-            .map_err(|e| format!("Failed running ssh-keygen: {}", e))?;
-
-        if !output.status.success() {
-            return Err(format!(
-                "ssh-keygen failed: {}",
-                String::from_utf8_lossy(&output.stderr)
-            ));
-        }
-    }
-
-    let pub_str = fs::read_to_string(&pub_path)
-        .map_err(|e| format!("Failed reading generated public key: {}", e))?
-        .trim()
-        .to_string();
-
-    let (raw_algo, fp) = compute_ssh_fingerprint(&pub_str)
-        .unwrap_or_else(|| ("ssh-ed25519".to_string(), "SHA256:generated".to_string()));
-
-    let key_info = SSHKeyInfo {
-        name: safe_name.clone(),
-        path: format!("~/.ssh/{}", safe_name),
-        algorithm: format_algorithm_label(&raw_algo),
-        fingerprint: fp,
-        public_key: pub_str,
-        bound_profile: format!("Pending ({})", email),
-        loaded_in_memory: true,
-        is_active_signing: false,
-        is_fido2: false,
-        ttl: "Session Persistent".to_string(),
-        auths_today: 0,
-        signed_commits: "Ready".to_string(),
-    };
-
-    if let Some(existing) = guard.config.ssh_keys.iter_mut().find(|k| k.name == safe_name) {
-        *existing = key_info.clone();
-    } else {
-        guard.config.ssh_keys.push(key_info.clone());
-    }
-    guard.save_config()?;
-    Ok(key_info)
+    guard.generate_ssh_key(&key_name, &email)
 }
 
 #[tauri::command]
 fn test_ssh_connection(state: State<AppState>, key_name: String) -> Result<SSHProbeResult, String> {
-    let start = Instant::now();
-    let (key_path, user_handle) = {
-        let guard = state.0.lock().map_err(|e| e.to_string())?;
-        let kp = guard.home_dir.join(".ssh").join(&key_name);
-        let handle = guard
-            .config
-            .profiles
-            .iter()
-            .find(|p| p.ssh_key == key_name)
-            .map(|p| p.username.clone())
-            .unwrap_or_else(|| "developer".to_string());
-        (kp, handle)
-    };
-
-    if key_path.exists() {
-        let output = Command::new("ssh")
-            .args([
-                "-Tv",
-                "-o",
-                "ConnectTimeout=4",
-                "-o",
-                "BatchMode=yes",
-                "-o",
-                "StrictHostKeyChecking=accept-new",
-                "-i",
-                &key_path.to_string_lossy(),
-                "git@github.com",
-            ])
-            .output();
-
-        if let Ok(out) = output {
-            let stdout = String::from_utf8_lossy(&out.stdout);
-            let stderr = String::from_utf8_lossy(&out.stderr);
-            let combined = format!("{}{}", stdout, stderr);
-            let authed = combined.contains("successfully authenticated");
-            let code = out.status.code().unwrap_or(1);
-            let latency_ms = (start.elapsed().as_millis() as f64).max(1.0);
-
-            return Ok(SSHProbeResult {
-                success: authed,
-                key_name,
-                host: "git@github.com".to_string(),
-                username: user_handle,
-                latency_ms,
-                terminal_output: if combined.trim().is_empty() {
-                    "ssh exited with no output".to_string()
-                } else {
-                    combined
-                },
-                exit_code: code,
-                tls_version: "OpenSSH / Ed25519".to_string(),
-            });
-        }
-    }
-
-    // Fallback telemetry when key is a template profile not yet generated on disk
-    let simulated_lines = [
-        format!(
-            "[note] Private key ~/.ssh/{} not found on disk; showing simulated diagnostic probe.",
-            key_name
-        ),
-        "OpenSSH_9.6p1, LibreSSL 3.3.6".to_string(),
-        "debug1: Connecting to github.com [140.82.121.4] port 22.".to_string(),
-        "debug1: Connection established.".to_string(),
-        format!("debug1: identity file ~/.ssh/{} type 3", key_name),
-        "debug1: Host 'github.com' is known and matches the Ed25519 host key.".to_string(),
-        format!(
-            "Hi {}! You have successfully authenticated, but GitHub does not provide shell access.",
-            user_handle
-        ),
-        "debug1: Exit status 1 (GitHub expected handshake code)".to_string(),
-    ];
-
-    Ok(SSHProbeResult {
-        success: true,
-        key_name,
-        host: "git@github.com".to_string(),
-        username: user_handle,
-        latency_ms: 28.0,
-        terminal_output: simulated_lines.join("\n"),
-        exit_code: 1,
-        tls_version: "TLS v1.3".to_string(),
-    })
+    let guard = state.0.lock().map_err(|e| e.to_string())?;
+    Ok(guard.test_ssh_connection(&key_name))
 }
 
 #[tauri::command]
@@ -1042,62 +1227,13 @@ fn get_folder_mappings(state: State<AppState>) -> Result<Vec<FolderMapping>, Str
 #[tauri::command]
 fn save_folder_mapping(state: State<AppState>, mapping: FolderMapping) -> Result<bool, String> {
     let mut guard = state.0.lock().map_err(|e| e.to_string())?;
-
-    if let Some(existing) = guard
-        .config
-        .folder_mappings
-        .iter_mut()
-        .find(|m| m.id == mapping.id)
-    {
-        *existing = mapping.clone();
-    } else {
-        guard.config.folder_mappings.push(mapping.clone());
-    }
-
-    // Keep profile.scope_paths in sync
-    if let Some(p) = guard
-        .config
-        .profiles
-        .iter_mut()
-        .find(|p| p.id == mapping.profile_id)
-    {
-        if !p.scope_paths.contains(&mapping.path_pattern) {
-            p.scope_paths.push(mapping.path_pattern);
-        }
-    }
-
-    guard.save_config()?;
-    let active_id = guard.config.settings.active_profile_id.clone();
-    let _ = guard.switch_active_profile(&active_id);
-    Ok(true)
+    guard.save_folder_mapping(mapping)
 }
 
 #[tauri::command]
 fn delete_folder_mapping(state: State<AppState>, id: String) -> Result<bool, String> {
     let mut guard = state.0.lock().map_err(|e| e.to_string())?;
-    let removed = guard
-        .config
-        .folder_mappings
-        .iter()
-        .find(|m| m.id == id)
-        .cloned();
-    guard.config.folder_mappings.retain(|m| m.id != id);
-
-    if let Some(rm) = removed {
-        if let Some(p) = guard
-            .config
-            .profiles
-            .iter_mut()
-            .find(|p| p.id == rm.profile_id)
-        {
-            p.scope_paths.retain(|s| s != &rm.path_pattern);
-        }
-    }
-
-    guard.save_config()?;
-    let active_id = guard.config.settings.active_profile_id.clone();
-    let _ = guard.switch_active_profile(&active_id);
-    Ok(true)
+    guard.delete_folder_mapping(&id)
 }
 
 #[tauri::command]
@@ -1109,134 +1245,37 @@ fn validate_hook(state: State<AppState>, path: String) -> Result<HookValidationR
 #[tauri::command]
 fn get_status(state: State<AppState>) -> Result<AppStatus, String> {
     let guard = state.0.lock().map_err(|e| e.to_string())?;
-    let active_profile = guard
-        .config
-        .profiles
-        .iter()
-        .find(|p| p.id == guard.config.settings.active_profile_id)
-        .cloned();
-
-    Ok(AppStatus {
-        version: guard.config.version.clone(),
-        pid: std::process::id(),
-        active_profile,
-        daemon_mode: guard.config.settings.daemon_mode.clone(),
-        daemon_enabled: guard.config.settings.daemon_enabled,
-        hook_type: guard.config.settings.hook_type.clone(),
-        last_switch_latency_ms: guard.config.settings.last_switch_latency_ms,
-        total_profiles: guard.config.profiles.len(),
-        total_mappings: guard.config.folder_mappings.len(),
-        total_keys: guard.config.ssh_keys.len(),
-        gitconfig_path: guard.home_dir.join(".gitconfig").to_string_lossy().to_string(),
-        sshconfig_path: guard
-            .home_dir
-            .join(".ssh")
-            .join("config")
-            .to_string_lossy()
-            .to_string(),
-        socket_path: guard.config.settings.socket_path.clone(),
-    })
+    Ok(guard.get_status())
 }
 
 #[tauri::command]
 fn get_config_files(state: State<AppState>) -> Result<ConfigFiles, String> {
     let guard = state.0.lock().map_err(|e| e.to_string())?;
-    let git_path = guard.home_dir.join(".gitconfig");
-    let ssh_path = guard.home_dir.join(".ssh").join("config");
-
-    let git_content = fs::read_to_string(&git_path).unwrap_or_else(|_| {
-        "# ~/.gitconfig not yet written by GitSwitch. Switch a profile to sync.".to_string()
-    });
-    let ssh_content = fs::read_to_string(&ssh_path).unwrap_or_else(|_| {
-        "# ~/.ssh/config not yet written by GitSwitch. Switch a profile to sync.".to_string()
-    });
-
-    Ok(ConfigFiles {
-        gitconfig_path: git_path.to_string_lossy().to_string(),
-        gitconfig_content: git_content,
-        sshconfig_path: ssh_path.to_string_lossy().to_string(),
-        sshconfig_content: ssh_content,
-    })
+    Ok(guard.get_config_files())
 }
 
 #[tauri::command]
 fn sync_keychain(state: State<AppState>) -> Result<String, String> {
     let mut guard = state.0.lock().map_err(|e| e.to_string())?;
-    guard.scan_ssh_keys();
-
-    if let Ok(output) = Command::new("ssh-add").arg("-l").output() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        if output.status.success() {
-            for k in &mut guard.config.ssh_keys {
-                if stdout.contains(&k.fingerprint) || stdout.contains(&k.name) {
-                    k.loaded_in_memory = true;
-                }
-            }
-            let _ = guard.save_config();
-            return Ok("Synchronized with active OpenSSH ssh-agent".to_string());
-        }
-    }
-
-    let _ = guard.save_config();
-    Ok("Synchronized local ~/.ssh keyring & fingerprints".to_string())
+    Ok(guard.sync_keychain())
 }
 
 #[tauri::command]
 fn flush_inactive_keys(state: State<AppState>) -> Result<usize, String> {
     let mut guard = state.0.lock().map_err(|e| e.to_string())?;
-    let active_id = guard.config.settings.active_profile_id.clone();
-    let active_key = guard
-        .config
-        .profiles
-        .iter()
-        .find(|p| p.id == active_id)
-        .map(|p| p.ssh_key.clone())
-        .unwrap_or_default();
-
-    let mut flushed = 0usize;
-    for k in &mut guard.config.ssh_keys {
-        if k.name != active_key && k.loaded_in_memory {
-            k.loaded_in_memory = false;
-            flushed += 1;
-        }
-    }
-    guard.save_config()?;
-    Ok(flushed)
+    guard.flush_inactive_keys()
 }
 
 #[tauri::command]
 fn apply_to_terminal(state: State<AppState>, profile_id: String) -> Result<String, String> {
     let guard = state.0.lock().map_err(|e| e.to_string())?;
-    let p = guard
-        .config
-        .profiles
-        .iter()
-        .find(|p| p.id == profile_id)
-        .ok_or_else(|| "Profile not found".to_string())?;
-
-    Ok(format!(
-        "# PowerShell / Bash session identity override:\n\
-         $env:GIT_AUTHOR_NAME=\"{0}\"; $env:GIT_AUTHOR_EMAIL=\"{1}\"; $env:GIT_COMMITTER_NAME=\"{0}\"; $env:GIT_COMMITTER_EMAIL=\"{1}\"; $env:GIT_SSH_COMMAND=\"ssh -i ~/.ssh/{2} -o IdentitiesOnly=yes\"\n\
-         # POSIX / Git Bash:\n\
-         export GIT_AUTHOR_NAME=\"{0}\"\n\
-         export GIT_AUTHOR_EMAIL=\"{1}\"\n\
-         export GIT_COMMITTER_NAME=\"{0}\"\n\
-         export GIT_COMMITTER_EMAIL=\"{1}\"\n\
-         export GIT_SSH_COMMAND=\"ssh -i ~/.ssh/{2} -o IdentitiesOnly=yes\"\n",
-        p.username, p.email, p.ssh_key
-    ))
+    guard.apply_to_terminal(&profile_id)
 }
 
 #[tauri::command]
 fn set_daemon_mode(state: State<AppState>, strict: bool) -> Result<String, String> {
     let mut guard = state.0.lock().map_err(|e| e.to_string())?;
-    guard.config.settings.daemon_mode = if strict {
-        "STRICT_DISPATCH".to_string()
-    } else {
-        "PASSIVE_DISPATCH".to_string()
-    };
-    guard.save_config()?;
-    Ok(guard.config.settings.daemon_mode.clone())
+    guard.set_daemon_mode(strict)
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

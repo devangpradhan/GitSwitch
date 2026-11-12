@@ -5,6 +5,7 @@
   export let options: { value: string; label: string; description?: string }[] = [];
   export let placeholder: string = 'Select option';
   export let className: string = '';
+  export let id: string = '';
 
   const dispatch = createEventDispatcher();
 
@@ -17,6 +18,7 @@
 
 <div class="relative w-full {className}">
   <select
+    {id}
     {value}
     on:change={handleChange}
     class="w-full appearance-none px-3.5 py-2.5 rounded-lg bg-[#070d13] border border-[#1b2734] text-slate-100 font-mono text-xs focus:outline-none focus:border-[#3fb950] focus:ring-1 focus:ring-[#3fb950]/40 transition-all cursor-pointer shadow-inner pr-10"

@@ -5,6 +5,7 @@
   export let disabled: boolean = false;
   export let id: string = '';
   export let className: string = '';
+  export let ariaLabel: string = 'Toggle setting';
 
   const dispatch = createEventDispatcher();
 
@@ -19,6 +20,7 @@
   type="button"
   role="switch"
   aria-checked={checked}
+  aria-label={ariaLabel}
   {disabled}
   {id}
   on:click={toggle}

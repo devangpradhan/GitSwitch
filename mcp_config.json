@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "gitswitch": {
+      "command": "F:\\Frojects\\Software\\Git manager\\GitSwitch\\src-tauri\\target\\release\\gitswitch-mcp.exe",
+      "args": []
+    }
+  }
+}
+

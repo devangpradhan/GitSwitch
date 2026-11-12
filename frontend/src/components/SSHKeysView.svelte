@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { sshKeys, loadSSHKeys, testConnection, isProbing, terminalLines, probeLatency, probeTime, syncKeychain, isSyncing, flushInactive, isFlushing } from '../stores/ssh';
+  import { sshKeys, loadSSHKeys, testConnection, isProbing, probeResult, terminalLines, probeLatency, probeTime, syncKeychain, isSyncing, flushInactive, isFlushing } from '../stores/ssh';
+  import { activeProfile } from '../stores/profiles';
   import { Button, Badge } from './ui';
   import type { SSHKeyInfo } from '../types';
 
@@ -8,6 +9,12 @@
   let copiedFingerprint: string | null = null;
   let copiedPublicKey: string | null = null;
   let syncSuccessMsg = '';
+
+  $: if ($probeResult?.key_name) {
+    currentKeyProbe = $probeResult.key_name;
+  } else if ($activeProfile?.ssh_key) {
+    currentKeyProbe = $activeProfile.ssh_key;
+  }
 
   onMount(() => {
     loadSSHKeys();

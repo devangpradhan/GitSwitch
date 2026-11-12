@@ -30,6 +30,8 @@
   <div 
     class="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-[#04080dc8] backdrop-blur-md transition-opacity duration-200"
     on:click|self={close}
+    on:keydown={(e) => { if (e.key === 'Escape') close(); }}
+    tabindex="-1"
     role="dialog"
     aria-modal="true"
     aria-labelledby="dialog-title"
