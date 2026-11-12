@@ -1,9 +1,10 @@
 import { writable } from 'svelte/store';
 import type { AppStatus } from '../types';
 import { GetStatus } from '../wailsjs/go/main/App';
+import { activeProfileId, switchLatency } from './profiles';
 
 export const appStatus = writable<AppStatus>({
-  version: '1.0.0',
+  version: '1.8.0',
   pid: 49201,
   daemon_mode: 'STRICT_DISPATCH',
   daemon_enabled: true,
@@ -21,6 +22,12 @@ export async function loadAppStatus() {
   try {
     const s = await GetStatus();
     appStatus.set(s);
+    if (s?.active_profile?.id) {
+      activeProfileId.set(s.active_profile.id);
+    }
+    if (typeof s?.last_switch_latency_ms === 'number') {
+      switchLatency.set(s.last_switch_latency_ms);
+    }
     return s;
   } catch (err) {
     console.error('Failed to load status:', err);

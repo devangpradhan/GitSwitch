@@ -1,25 +1,30 @@
-// Wails v2 runtime wrapper
+import { getCurrentWindow } from '@tauri-apps/api/window';
+
+const isTauri = () => typeof window !== 'undefined' && Boolean(window.__TAURI_INTERNALS__);
+
 export function Quit() {
-  if (window.runtime && window.runtime.Quit) {
+  if (isTauri()) {
+    getCurrentWindow().close();
+  } else if (window.runtime && window.runtime.Quit) {
     window.runtime.Quit();
   } else {
-    console.log('[Wails Runtime] Quit requested');
+    window.close();
   }
 }
 
 export function WindowMinimise() {
-  if (window.runtime && window.runtime.WindowMinimise) {
+  if (isTauri()) {
+    getCurrentWindow().minimize();
+  } else if (window.runtime && window.runtime.WindowMinimise) {
     window.runtime.WindowMinimise();
-  } else {
-    console.log('[Wails Runtime] WindowMinimise requested');
   }
 }
 
 export function WindowToggleMaximise() {
-  if (window.runtime && window.runtime.WindowToggleMaximise) {
+  if (isTauri()) {
+    getCurrentWindow().toggleMaximize();
+  } else if (window.runtime && window.runtime.WindowToggleMaximise) {
     window.runtime.WindowToggleMaximise();
-  } else {
-    console.log('[Wails Runtime] WindowToggleMaximise requested');
   }
 }
 

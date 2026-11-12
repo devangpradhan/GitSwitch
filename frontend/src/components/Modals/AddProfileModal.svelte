@@ -3,9 +3,12 @@
   import { Dialog, Button, Select } from '../ui';
   import { saveProfile, switchProfile } from '../../stores/profiles';
   import { sshKeys, loadSSHKeys } from '../../stores/ssh';
+  import { loadFolderMappings } from '../../stores/mappings';
+  import { GenerateSSHKey } from '../../wailsjs/go/main/App';
   import type { Profile } from '../../types';
 
   export let open: boolean = false;
+  export let editingProfile: Profile | null = null;
 
   const dispatch = createEventDispatcher();
 
@@ -22,6 +25,23 @@
 
   let isSaving = false;
   let saveLogs: string[] = [];
+
+  $: if (open) {
+    saveLogs = [];
+    if (editingProfile) {
+      profileName = editingProfile.name;
+      username = editingProfile.username;
+      email = editingProfile.email;
+      selectedSSHKey = editingProfile.ssh_key;
+      scopePaths = (editingProfile.scope_paths || []).join(', ');
+      signingKey = editingProfile.signing_key || '';
+      color = editingProfile.color || '#3fb950';
+      tag = editingProfile.tag || 'identity';
+      keyMode = 'existing';
+    }
+  }
+
+  $: selectedKeyObj = $sshKeys.find(k => k.name === selectedSSHKey);
 
   const colorOptions = [
     { name: 'Mint Green', value: '#3fb950', tag: 'corp-id' },
@@ -56,7 +76,18 @@
     await new Promise(r => setTimeout(r, 120));
     saveLogs = [...saveLogs, `> Compiling gitdir:includeIf stanza [${selectedSSHKey}]...`];
 
-    const id = profileName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+    let finalSSHKey = selectedSSHKey;
+    if (keyMode === 'generate') {
+      saveLogs = [...saveLogs, `> Generating Ed25519 keypair (~/.ssh/${newKeyName})...`];
+      const genKey = await GenerateSSHKey(newKeyName, email);
+      finalSSHKey = genKey.name;
+      await loadSSHKeys();
+      saveLogs = [...saveLogs, `> Keypair ready (${genKey.fingerprint.slice(0, 22)}...) OK`];
+    }
+
+    const id = editingProfile
+      ? editingProfile.id
+      : profileName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
     const scopes = scopePaths.split(',').map(s => s.trim()).filter(Boolean);
 
     const newProfile: Profile = {
@@ -64,17 +95,18 @@
       name: profileName,
       username: username,
       email: email,
-      ssh_key: keyMode === 'generate' ? newKeyName : selectedSSHKey,
-      ssh_key_path: `~/.ssh/${keyMode === 'generate' ? newKeyName : selectedSSHKey}`,
+      ssh_key: finalSSHKey,
+      ssh_key_path: `~/.ssh/${finalSSHKey}`,
       signing_key: signingKey.trim() || undefined,
       scope_paths: scopes.length ? scopes : [`~/Developer/${profileName}/*`],
       color: color,
       tag: tag,
-      shortcut: '⌘' + (Math.floor(Math.random() * 5) + 5),
+      shortcut: editingProfile?.shortcut || '⌘' + (Math.floor(Math.random() * 5) + 5),
     };
 
     try {
       await saveProfile(newProfile);
+      await loadFolderMappings();
       saveLogs = [...saveLogs, `> Appending ~/.gitconfig hooks... [0.14ms] OK`];
       await new Promise(r => setTimeout(r, 100));
       saveLogs = [...saveLogs, `> Linking SSH identity in ~/.ssh/config... [0.08ms] OK`];
@@ -95,14 +127,14 @@
 
 <Dialog 
   bind:open 
-  title="Initialize New GitHub Identity" 
+  title={editingProfile ? `Configure Identity: ${editingProfile.name}` : 'Initialize New GitHub Identity'} 
   description="Configures gitconfig scope, SSH agent bindings, & automatic folder dispatch."
   maxWidth="max-w-[680px]"
   on:close={() => dispatch('close')}
 >
   <svelte:fragment slot="badge">
     <span class="text-[10px] font-mono font-medium px-2 py-0.5 rounded bg-[#3fb950]/15 text-[#3fb950] border border-[#3fb950]/30">
-      v1.0.0
+      v1.8.0
     </span>
   </svelte:fragment>
 
@@ -214,7 +246,7 @@
           <div class="flex items-center justify-between px-3 py-2 rounded-md bg-[#070d13]/70 border border-[#1b2734]/70 text-[11px] font-mono text-slate-400">
             <div class="flex items-center gap-2">
               <span class="text-[#3fb950]">🔑</span>
-              <span>Fingerprint: <span class="text-slate-200">SHA256:8kL9v+3qJ...91zX</span></span>
+              <span>Fingerprint: <span class="text-slate-200">{selectedKeyObj ? selectedKeyObj.fingerprint.slice(0, 26) + '...' : 'No key selected'}</span></span>
             </div>
             <span class="text-emerald-400 bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-800/40 text-[10px]">
               Enclave Safe

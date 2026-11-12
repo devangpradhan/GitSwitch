@@ -17,6 +17,17 @@
   let currentTab: string = 'dashboard';
   let isAddModalOpen: boolean = false;
   let isConfigModalOpen: boolean = false;
+  let editingProfile: import('./types').Profile | null = null;
+
+  function openNewProfileModal() {
+    editingProfile = null;
+    isAddModalOpen = true;
+  }
+
+  function openEditProfileModal(profile: import('./types').Profile) {
+    editingProfile = profile;
+    isAddModalOpen = true;
+  }
 
   onMount(async () => {
     await loadProfiles();
@@ -65,7 +76,7 @@
     <TitleBar 
       activeTab={currentTab}
       on:tab-change={handleTabChange}
-      on:open-add={() => isAddModalOpen = true}
+      on:open-add={openNewProfileModal}
       on:open-config={() => isConfigModalOpen = true}
     />
 
@@ -95,8 +106,8 @@
       {#if currentTab === 'profiles'}
         <div class="w-full relative z-10 animate-in fade-in duration-150">
           <ProfilesView 
-            on:add-identity={() => isAddModalOpen = true}
-            on:edit-profile={() => isAddModalOpen = true}
+            on:add-identity={openNewProfileModal}
+            on:edit-profile={(e) => openEditProfileModal(e.detail)}
           />
         </div>
       {/if}
@@ -151,8 +162,9 @@
 
 <!-- Add Profile Identity Modal -->
 <AddProfileModal 
-  bind:open={isAddModalOpen} 
-  on:close={() => isAddModalOpen = false}
+  bind:open={isAddModalOpen}
+  {editingProfile}
+  on:close={() => { isAddModalOpen = false; editingProfile = null; }}
 />
 
 <!-- Config Inspector Modal -->

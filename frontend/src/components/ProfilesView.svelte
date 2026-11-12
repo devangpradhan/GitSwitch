@@ -160,9 +160,9 @@
               <span class="bg-[#121c26] border border-[#1e2d3e] px-2 py-0.5 rounded text-[11px] text-[#a2c9ff] flex items-center gap-1">
                 <span>🔑 {profile.ssh_key}</span>
               </span>
-              {#if profile.signingKey}
+              {#if profile.signing_key}
                 <span class="bg-[#121c26] border border-[#3fb950]/30 px-2 py-0.5 rounded text-[11px] text-[#3fb950] flex items-center gap-1">
-                  <span>✓ {profile.signingKey}</span>
+                  <span>✓ {profile.signing_key}</span>
                 </span>
               {/if}
             </div>

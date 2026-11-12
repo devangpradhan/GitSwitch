@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { folderMappings, currentValidation, validatePath, deleteFolderMapping, saveFolderMapping, loadFolderMappings } from '../stores/mappings';
   import { profiles, activeProfileId } from '../stores/profiles';
+  import { SetDaemonMode } from '../wailsjs/go/main/App';
   import { Button, Badge, Switch, Dialog, Select } from './ui';
   import type { FolderMapping } from '../types';
 
@@ -79,7 +80,7 @@
         <span class="text-slate-400 text-[11px]">Daemon Switcher</span>
         <span class="text-[#3fb950] font-semibold">{daemonStrict ? 'STRICT_DISPATCH' : 'PASSIVE_DISPATCH'}</span>
       </div>
-      <Switch bind:checked={daemonStrict} />
+      <Switch bind:checked={daemonStrict} on:change={() => SetDaemonMode(daemonStrict)} />
     </div>
   </div>
 
