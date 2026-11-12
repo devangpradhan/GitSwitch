@@ -131,9 +131,13 @@
 
     <!-- Mode Indicator / Dial Interaction Tip -->
     <div class="flex items-center gap-2 font-mono text-[11px] text-slate-400">
-      <span class="inline-block w-2 h-2 rounded-full bg-[#3fb950] animate-pulse"></span>
-      <span class="hidden md:inline">ROTATE OR CLICK PROFILE TICK TO SWITCH</span>
-      <span class="md:hidden">CLICK TICK TO SWITCH</span>
+      <span class="inline-block w-2 h-2 rounded-full {$profiles.length > 0 ? 'bg-[#3fb950] animate-pulse' : 'bg-slate-600'}"></span>
+      {#if $profiles.length > 0}
+        <span class="hidden md:inline">ROTATE OR CLICK PROFILE TICK TO SWITCH</span>
+        <span class="md:hidden">CLICK TICK TO SWITCH</span>
+      {:else}
+        <span>NO PROFILES CONFIGURED</span>
+      {/if}
     </div>
   </div>
 

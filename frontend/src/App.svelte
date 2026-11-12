@@ -48,18 +48,12 @@
     } else if (isMeta && e.key === ',') {
       e.preventDefault();
       isConfigModalOpen = true;
-    } else if (isMeta && e.key === '1' && $profiles[0]) {
-      e.preventDefault();
-      switchProfile($profiles[0].id);
-    } else if (isMeta && e.key === '2' && $profiles[1]) {
-      e.preventDefault();
-      switchProfile($profiles[1].id);
-    } else if (isMeta && e.key === '3' && $profiles[2]) {
-      e.preventDefault();
-      switchProfile($profiles[2].id);
-    } else if (isMeta && e.key === '4' && $profiles[3]) {
-      e.preventDefault();
-      switchProfile($profiles[3].id);
+    } else if (isMeta && e.key >= '1' && e.key <= '9') {
+      const idx = Number(e.key) - 1;
+      if ($profiles[idx]) {
+        e.preventDefault();
+        switchProfile($profiles[idx].id);
+      }
     }
   }
 
@@ -99,7 +93,25 @@
       {#if currentTab === 'dashboard'}
         <div class="w-full flex flex-col items-center justify-between gap-6 relative z-10 animate-in fade-in duration-150">
           <DashboardRotary />
-          <ProfileCard on:open-ssh-tab={() => currentTab = 'ssh-keys'} />
+          {#if $profiles.length === 0}
+            <div class="w-full max-w-[840px] bg-[#0c131c] border border-dashed border-[#233547] rounded-xl p-6 text-center space-y-3 font-mono">
+              <div class="text-sm font-semibold text-white">No GitHub Identities Configured</div>
+              <p class="text-xs text-slate-400 font-sans max-w-lg mx-auto">
+                Add your first GitHub account to manage <code class="text-[#3fb950]">~/.gitconfig</code>, generate or link an SSH key in <code class="text-[#a2c9ff]">~/.ssh/</code>, and configure <code class="text-[#38bdf8]">includeIf.gitdir</code> folder rules.
+              </p>
+              <div>
+                <button
+                  type="button"
+                  on:click={openNewProfileModal}
+                  class="px-4 py-2 rounded-lg bg-[#2ea043] hover:bg-[#3fb950] text-black font-mono text-xs font-bold transition-colors"
+                >
+                  + Add First Identity (⌘N)
+                </button>
+              </div>
+            </div>
+          {:else}
+            <ProfileCard on:open-ssh-tab={() => currentTab = 'ssh-keys'} />
+          {/if}
         </div>
       {/if}
 
@@ -135,7 +147,7 @@
           <span class="text-slate-500">config:</span>
           <span class="text-[#3fb950]">~/.gitconfig</span>
           <span class="text-slate-600">→</span>
-          <span class="text-slate-200">~/.gitconfig-{$activeProfile?.id || 'work'}</span>
+          <span class="text-slate-200">~/.gitconfig-{$activeProfile?.id || 'none'}</span>
         </div>
         <div class="hidden sm:flex items-center gap-1.5">
           <span class="text-slate-500">ssh-agent:</span>

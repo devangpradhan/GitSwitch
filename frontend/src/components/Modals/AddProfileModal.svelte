@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { Dialog, Button, Select } from '../ui';
-  import { saveProfile, switchProfile } from '../../stores/profiles';
+  import { profiles, saveProfile, switchProfile } from '../../stores/profiles';
   import { sshKeys, loadSSHKeys } from '../../stores/ssh';
   import { loadFolderMappings } from '../../stores/mappings';
   import { GenerateSSHKey } from '../../wailsjs/go/main/App';
@@ -12,16 +12,16 @@
 
   const dispatch = createEventDispatcher();
 
-  let profileName = 'Client / Freelance';
-  let username = 'alex-consulting';
-  let email = 'alex@freelance-studio.dev';
-  let selectedSSHKey = 'id_ed25519_client';
-  let scopePaths = '~/Developer/Freelance/*';
+  let profileName = '';
+  let username = '';
+  let email = '';
+  let selectedSSHKey = '';
+  let scopePaths = '';
   let signingKey = '';
-  let color = '#38bdf8';
-  let tag = 'agency-dev';
+  let color = '#3fb950';
+  let tag = 'corp-id';
   let keyMode: 'existing' | 'generate' = 'existing';
-  let newKeyName = 'id_ed25519_freelance';
+  let newKeyName = 'id_ed25519_github';
 
   let isSaving = false;
   let saveLogs: string[] = [];
@@ -44,13 +44,13 @@
       profileName = '';
       username = '';
       email = '';
-      selectedSSHKey = $sshKeys[0]?.name || 'id_ed25519_work';
-      scopePaths = '~/Developer/Projects/*';
+      selectedSSHKey = $sshKeys[0]?.name || '';
+      scopePaths = '';
       signingKey = '';
-      color = '#38bdf8';
-      tag = 'agency-dev';
-      keyMode = 'existing';
-      newKeyName = 'id_ed25519_custom';
+      color = '#3fb950';
+      tag = 'identity';
+      keyMode = $sshKeys.length > 0 ? 'existing' : 'generate';
+      newKeyName = 'id_ed25519_github';
     }
   } else if (!open && wasOpen) {
     wasOpen = false;
@@ -59,10 +59,10 @@
   $: selectedKeyObj = $sshKeys.find(k => k.name === selectedSSHKey);
 
   const colorOptions = [
-    { name: 'Mint Green', value: '#3fb950', tag: 'corp-id' },
+    { name: 'Mint Green', value: '#3fb950', tag: 'work' },
     { name: 'Indigo / Violet', value: '#6366f1', tag: 'personal' },
-    { name: 'Terminal Cyan', value: '#38bdf8', tag: 'agency-dev' },
-    { name: 'Royal Purple', value: '#bc8cff', tag: 'bastion-bot' },
+    { name: 'Terminal Cyan', value: '#38bdf8', tag: 'client' },
+    { name: 'Royal Purple', value: '#bc8cff', tag: 'oss' },
     { name: 'Warning Amber', value: '#d29922', tag: 'sandbox' },
   ];
 
@@ -80,56 +80,51 @@
   async function handleSave() {
     if (!profileName.trim() || !username.trim() || !email.trim()) return;
 
+    const startTime = performance.now();
     isSaving = true;
     saveLogs = [
       `> Initializing profile directory for [${profileName}]...`,
     ];
 
-    await new Promise(r => setTimeout(r, 120));
-    saveLogs = [...saveLogs, `> Parsing user scope paths: ${scopePaths}...`];
-
-    await new Promise(r => setTimeout(r, 120));
-    saveLogs = [...saveLogs, `> Compiling gitdir:includeIf stanza [${selectedSSHKey}]...`];
-
     let finalSSHKey = selectedSSHKey;
-    if (keyMode === 'generate') {
-      saveLogs = [...saveLogs, `> Generating Ed25519 keypair (~/.ssh/${newKeyName})...`];
-      const genKey = await GenerateSSHKey(newKeyName, email);
-      finalSSHKey = genKey.name;
-      await loadSSHKeys();
-      saveLogs = [...saveLogs, `> Keypair ready (${genKey.fingerprint.slice(0, 22)}...) OK`];
-    }
-
-    const id = editingProfile
-      ? editingProfile.id
-      : profileName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-    const scopes = scopePaths.split(',').map(s => s.trim()).filter(Boolean);
-
-    const newProfile: Profile = {
-      id: id || `profile-${Date.now()}`,
-      name: profileName,
-      username: username,
-      email: email,
-      ssh_key: finalSSHKey,
-      ssh_key_path: `~/.ssh/${finalSSHKey}`,
-      signing_key: signingKey.trim() || undefined,
-      scope_paths: scopes.length ? scopes : [`~/Developer/${profileName}/*`],
-      color: color,
-      tag: tag,
-      shortcut: editingProfile?.shortcut || '⌘' + (Math.floor(Math.random() * 5) + 5),
-    };
-
     try {
+      if (keyMode === 'generate') {
+        saveLogs = [...saveLogs, `> Generating Ed25519 keypair (~/.ssh/${newKeyName})...`];
+        const genKey = await GenerateSSHKey(newKeyName, email);
+        finalSSHKey = genKey.name;
+        await loadSSHKeys();
+        saveLogs = [...saveLogs, `> Keypair ready (${genKey.fingerprint.slice(0, 22)}...) OK`];
+      }
+
+      const id = editingProfile
+        ? editingProfile.id
+        : profileName.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+      const scopes = scopePaths.split(',').map(s => s.trim()).filter(Boolean);
+      const nextShortcutIdx = $profiles.length + 1;
+      const defaultShortcut = nextShortcutIdx <= 9 ? `⌘${nextShortcutIdx}` : undefined;
+
+      const newProfile: Profile = {
+        id: id || `profile-${Date.now()}`,
+        name: profileName.trim(),
+        username: username.trim(),
+        email: email.trim(),
+        ssh_key: finalSSHKey.trim(),
+        ssh_key_path: finalSSHKey.trim() ? `~/.ssh/${finalSSHKey.trim()}` : undefined,
+        signing_key: signingKey.trim() || undefined,
+        scope_paths: scopes,
+        color: color,
+        tag: tag,
+        shortcut: editingProfile?.shortcut || defaultShortcut,
+      };
+
+      saveLogs = [...saveLogs, `> Writing ~/.gitconfig hooks and ~/.ssh/config...`];
       await saveProfile(newProfile);
       await loadFolderMappings();
-      saveLogs = [...saveLogs, `> Appending ~/.gitconfig hooks... [0.14ms] OK`];
-      await new Promise(r => setTimeout(r, 100));
-      saveLogs = [...saveLogs, `> Linking SSH identity in ~/.ssh/config... [0.08ms] OK`];
-      await new Promise(r => setTimeout(r, 100));
-      saveLogs = [...saveLogs, `✓ Identity [${newProfile.name}] linked and persisted!`];
-
-      await new Promise(r => setTimeout(r, 400));
       await switchProfile(newProfile.id);
+      const elapsed = (performance.now() - startTime).toFixed(1);
+      saveLogs = [...saveLogs, `✓ Identity [${newProfile.name}] linked and active (${elapsed}ms)`];
+
+      await new Promise(r => setTimeout(r, 250));
       open = false;
       dispatch('created', newProfile);
     } catch (err) {
@@ -168,7 +163,7 @@
           bind:value={profileName}
           type="text" 
           required
-          placeholder="e.g. Client / Freelance or Open-Source Labs" 
+          placeholder="e.g. Work, Personal, or Open Source" 
           class="w-full px-3.5 py-2.5 rounded-lg bg-[#070d13] border border-[#1b2734] text-slate-100 font-mono text-xs focus:outline-none focus:border-[#3fb950] focus:ring-1 focus:ring-[#3fb950]/40 placeholder:text-slate-600 transition-all shadow-inner"
         />
         <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 text-[11px] font-mono text-slate-400">
@@ -204,7 +199,7 @@
             bind:value={username}
             type="text" 
             required
-            placeholder="dev-alex" 
+            placeholder="github-username" 
             class="w-full pl-8 pr-3.5 py-2.5 rounded-lg bg-[#070d13] border border-[#1b2734] text-slate-100 font-mono text-xs focus:outline-none focus:border-[#3fb950] focus:ring-1 focus:ring-[#3fb950]/40 placeholder:text-slate-600 transition-all shadow-inner"
           />
         </div>
@@ -223,7 +218,7 @@
             bind:value={email}
             type="email" 
             required
-            placeholder="alex@freelance-studio.dev" 
+            placeholder="you@example.com" 
             class="w-full px-3.5 py-2.5 rounded-lg bg-[#070d13] border border-[#1b2734] text-slate-100 font-mono text-xs focus:outline-none focus:border-[#3fb950] focus:ring-1 focus:ring-[#3fb950]/40 placeholder:text-slate-600 transition-all shadow-inner"
           />
         </div>
@@ -306,8 +301,7 @@
           id="scopePathsInput"
           bind:value={scopePaths}
           type="text" 
-          required
-          placeholder="e.g. ~/Developer/Freelance/* or ~/Projects/Client/*" 
+          placeholder="Optional: e.g. ~/Projects/Work/*, ~/Code/OSS/*" 
           class="w-full px-3.5 py-2.5 rounded-lg bg-[#070d13] border border-[#1b2734] text-slate-100 font-mono text-xs focus:outline-none focus:border-[#3fb950] focus:ring-1 focus:ring-[#3fb950]/40 placeholder:text-slate-600 transition-all shadow-inner"
         />
       </div>

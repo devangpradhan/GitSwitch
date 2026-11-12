@@ -3,153 +3,6 @@ import { invoke } from '@tauri-apps/api/core';
 
 const isTauri = () => typeof window !== 'undefined' && Boolean(window.__TAURI_INTERNALS__);
 
-const defaultProfiles = [
-  {
-    id: 'work',
-    name: 'Work',
-    username: 'rahul-corp',
-    email: 'rahul@company.com',
-    ssh_key: 'id_ed25519_work',
-    ssh_key_path: '~/.ssh/id_ed25519_work',
-    signing_key: '0x9F4C2A1E',
-    scope_paths: ['~/Developer/Work/*', '~/Projects/Client-Infra/*'],
-    color: '#3fb950',
-    tag: 'corp-id',
-    shortcut: '⌘1'
-  },
-  {
-    id: 'personal',
-    name: 'Personal',
-    username: 'rahulcodes',
-    email: 'rahul.personal@gmail.com',
-    ssh_key: 'id_rsa_personal',
-    ssh_key_path: '~/.ssh/id_rsa_personal',
-    scope_paths: ['~/Developer/Personal/*', '~/Sideprojects/*'],
-    color: '#6366f1',
-    tag: 'personal',
-    shortcut: '⌘2'
-  },
-  {
-    id: 'client',
-    name: 'Client / Freelance',
-    username: 'alex-consulting',
-    email: 'alex@freelance-studio.dev',
-    ssh_key: 'id_ed25519_client',
-    ssh_key_path: '~/.ssh/id_ed25519_client',
-    signing_key: '0x7B28C39F',
-    scope_paths: ['~/Developer/Freelance/*', '~/Clients/*'],
-    color: '#38bdf8',
-    tag: 'agency-dev',
-    shortcut: '⌘3'
-  },
-  {
-    id: 'enterprise',
-    name: 'Enterprise Bot',
-    username: 'bastion-bot',
-    email: 'bot@corp-bastion.internal',
-    ssh_key: 'id_ed25519_oss',
-    ssh_key_path: '~/.ssh/id_ed25519_oss',
-    scope_paths: ['~/Enterprise/Infra/*'],
-    color: '#bc8cff',
-    tag: 'bastion-bot',
-    shortcut: '⌘4'
-  }
-];
-
-const defaultMappings = [
-  {
-    id: 'work-dev',
-    path_pattern: '~/Developer/Work/*',
-    profile_id: 'work',
-    profile_name: 'Work',
-    is_active: true,
-    ssh_key: 'id_ed25519_work (256b ed25519)'
-  },
-  {
-    id: 'work-infra',
-    path_pattern: '~/Projects/Client-Infra/*',
-    profile_id: 'work',
-    profile_name: 'Work',
-    is_active: true,
-    ssh_key: 'id_ed25519_work (256b ed25519)'
-  },
-  {
-    id: 'personal-dev',
-    path_pattern: '~/Developer/Personal/*',
-    profile_id: 'personal',
-    profile_name: 'Personal',
-    is_active: false,
-    ssh_key: 'id_rsa_personal (4096b rsa)'
-  },
-  {
-    id: 'client-freelance',
-    path_pattern: '~/Developer/Freelance/*',
-    profile_id: 'client',
-    profile_name: 'Client / Freelance',
-    is_active: false,
-    ssh_key: 'id_ed25519_client (256b ed25519)'
-  }
-];
-
-const defaultKeys = [
-  {
-    name: 'id_ed25519_work',
-    path: '~/.ssh/id_ed25519_work',
-    algorithm: 'Ed25519 · 256-bit elliptic curve',
-    fingerprint: 'SHA256:7uK2xP+8mN9vB3qQ90Zx9uJ4kLmQpWs2eRtU89wX4yZ01',
-    public_key: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOrXb7y5N3PqLmK2wX9z0Y1uV4mN8pRs9tUe0q1wZ3x rahul@company.com',
-    bound_profile: 'Work (@rahul-corp / rahul@company.com)',
-    loaded_in_memory: true,
-    is_active_signing: true,
-    is_fido2: true,
-    ttl: 'Session Persistent',
-    auths_today: 48,
-    signed_commits: '1,208 verified'
-  },
-  {
-    name: 'id_rsa_personal',
-    path: '~/.ssh/id_rsa_personal',
-    algorithm: 'RSA · 4096-bit (Legacy Compatible)',
-    fingerprint: 'SHA256:d8N7xQ41pL0m589uYqZ24V31nB50pOx421k92zV88',
-    public_key: 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDQ9wX2yZ01kLmQpWs2eRtU89wX4yZ01 rahul.personal@gmail.com',
-    bound_profile: 'Personal (@rahulcodes / rahul.personal@gmail.com)',
-    loaded_in_memory: true,
-    is_active_signing: false,
-    is_fido2: false,
-    ttl: 'Persistent',
-    auths_today: 12,
-    signed_commits: '342 commits'
-  },
-  {
-    name: 'id_ed25519_oss',
-    path: '~/.ssh/id_ed25519_oss',
-    algorithm: 'Ed25519 · 256-bit Bastion Signed',
-    fingerprint: 'SHA256:3pQ90Zx9uJ4kLmQpWs2eRtU89wX4yZ017uK2xP+8mN9vB',
-    public_key: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC9x8yZ01kLmQpWs2eRtU89wX4yZ01 bot@corp-bastion.internal',
-    bound_profile: 'Enterprise Bot (@bastion-bot)',
-    loaded_in_memory: true,
-    is_active_signing: false,
-    is_fido2: false,
-    ttl: '4h remaining',
-    auths_today: 82,
-    signed_commits: '5,410 verified'
-  },
-  {
-    name: 'id_ed25519_client',
-    path: '~/.ssh/id_ed25519_client',
-    algorithm: 'Ed25519 · 256-bit elliptic curve',
-    fingerprint: 'SHA256:8kL9v+3qJ91zX4uV4mN8pRs9tUe0q1wZ3x7uK2xP+8mN9',
-    public_key: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK1mN8pRs9tUe0q1wZ3x7uK2xP+8mN9vB3qQ90Zx alex@freelance-studio.dev',
-    bound_profile: 'Client / Freelance (@alex-consulting)',
-    loaded_in_memory: true,
-    is_active_signing: false,
-    is_fido2: false,
-    ttl: 'Session Persistent',
-    auths_today: 19,
-    signed_commits: '89 verified'
-  }
-];
-
 function getStored(key, fallback) {
   try {
     const val = localStorage.getItem(`gitswitch_${key}`);
@@ -170,7 +23,7 @@ export function GetProfiles() {
   if (window['go']?.['main']?.['App']?.['GetProfiles']) {
     return window['go']['main']['App']['GetProfiles']();
   }
-  return Promise.resolve(getStored('profiles', defaultProfiles));
+  return Promise.resolve(getStored('profiles', []));
 }
 
 export function SaveProfile(profile) {
@@ -178,7 +31,7 @@ export function SaveProfile(profile) {
   if (window['go']?.['main']?.['App']?.['SaveProfile']) {
     return window['go']['main']['App']['SaveProfile'](profile);
   }
-  const profiles = getStored('profiles', defaultProfiles);
+  const profiles = getStored('profiles', []);
   const index = profiles.findIndex(p => p.id === profile.id);
   if (index >= 0) profiles[index] = profile;
   else profiles.push(profile);
@@ -191,7 +44,7 @@ export function DeleteProfile(profileId) {
   if (window['go']?.['main']?.['App']?.['DeleteProfile']) {
     return window['go']['main']['App']['DeleteProfile'](profileId);
   }
-  const profiles = getStored('profiles', defaultProfiles).filter(p => p.id !== profileId);
+  const profiles = getStored('profiles', []).filter(p => p.id !== profileId);
   setStored('profiles', profiles);
   return Promise.resolve(true);
 }
@@ -201,17 +54,20 @@ export function SwitchActiveProfile(profileId) {
   if (window['go']?.['main']?.['App']?.['SwitchActiveProfile']) {
     return window['go']['main']['App']['SwitchActiveProfile'](profileId);
   }
-  const profiles = getStored('profiles', defaultProfiles);
-  const profile = profiles.find(p => p.id === profileId) || profiles[0];
+  const profiles = getStored('profiles', []);
+  const profile = profiles.find(p => p.id === profileId);
+  if (!profile) {
+    return Promise.reject(new Error(`Profile not found: ${profileId}`));
+  }
   setStored('active_id', profileId);
   return Promise.resolve({
     success: true,
     profile_id: profile.id,
     profile_name: profile.name,
-    latency_ms: 0.18,
-    message: `Switched to ${profile.name} in 0.18ms`,
-    gitconfig_updated: true,
-    sshconfig_updated: true
+    latency_ms: 0.1,
+    message: `Switched to ${profile.name}`,
+    gitconfig_updated: false,
+    sshconfig_updated: false
   });
 }
 
@@ -220,25 +76,12 @@ export function GetSSHKeys() {
   if (window['go']?.['main']?.['App']?.['GetSSHKeys']) {
     return window['go']['main']['App']['GetSSHKeys']();
   }
-  return Promise.resolve(getStored('keys', defaultKeys));
+  return Promise.resolve(getStored('keys', []));
 }
 
 export function GenerateSSHKey(keyName, email) {
   if (isTauri()) return invoke('generate_ssh_key', { keyName, email });
-  return Promise.resolve({
-    name: keyName,
-    path: `~/.ssh/${keyName}`,
-    algorithm: 'Ed25519 · 256-bit elliptic curve',
-    fingerprint: 'SHA256:generatedPreviewFingerprint',
-    public_key: `ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIStub ${email}`,
-    bound_profile: `Pending (${email})`,
-    loaded_in_memory: true,
-    is_active_signing: false,
-    is_fido2: false,
-    ttl: 'Session Persistent',
-    auths_today: 0,
-    signed_commits: 'Ready'
-  });
+  return Promise.reject(new Error('SSH key generation requires the GitSwitch desktop runtime.'));
 }
 
 export function TestSSHConnection(keyName) {
@@ -247,14 +90,14 @@ export function TestSSHConnection(keyName) {
     return window['go']['main']['App']['TestSSHConnection'](keyName);
   }
   return Promise.resolve({
-    success: true,
+    success: false,
     key_name: keyName,
     host: 'git@github.com',
-    username: 'developer',
-    latency_ms: 28,
-    terminal_output: 'Simulated SSH probe output',
-    exit_code: 1,
-    tls_version: 'TLS v1.3'
+    username: '',
+    latency_ms: 0,
+    terminal_output: 'SSH connection probing requires the GitSwitch desktop runtime.',
+    exit_code: -1,
+    tls_version: 'N/A'
   });
 }
 
@@ -263,7 +106,7 @@ export function GetFolderMappings() {
   if (window['go']?.['main']?.['App']?.['GetFolderMappings']) {
     return window['go']['main']['App']['GetFolderMappings']();
   }
-  return Promise.resolve(getStored('mappings', defaultMappings));
+  return Promise.resolve(getStored('mappings', []));
 }
 
 export function SaveFolderMapping(mapping) {
@@ -271,7 +114,7 @@ export function SaveFolderMapping(mapping) {
   if (window['go']?.['main']?.['App']?.['SaveFolderMapping']) {
     return window['go']['main']['App']['SaveFolderMapping'](mapping);
   }
-  const mappings = getStored('mappings', defaultMappings);
+  const mappings = getStored('mappings', []);
   mappings.push(mapping);
   setStored('mappings', mappings);
   return Promise.resolve(true);
@@ -282,7 +125,7 @@ export function DeleteFolderMapping(id) {
   if (window['go']?.['main']?.['App']?.['DeleteFolderMapping']) {
     return window['go']['main']['App']['DeleteFolderMapping'](id);
   }
-  const mappings = getStored('mappings', defaultMappings).filter(m => m.id !== id);
+  const mappings = getStored('mappings', []).filter(m => m.id !== id);
   setStored('mappings', mappings);
   return Promise.resolve(true);
 }
@@ -296,7 +139,7 @@ export function ValidateHook(path) {
     input_path: path,
     normalized_path: path,
     matched: false,
-    latency_ms: 0.08
+    latency_ms: 0
   });
 }
 
@@ -305,17 +148,21 @@ export function GetStatus() {
   if (window['go']?.['main']?.['App']?.['GetStatus']) {
     return window['go']['main']['App']['GetStatus']();
   }
+  const profiles = getStored('profiles', []);
+  const mappings = getStored('mappings', []);
+  const keys = getStored('keys', []);
+  const activeId = getStored('active_id', '');
   return Promise.resolve({
     version: '1.0.0',
-    pid: 49201,
-    active_profile: defaultProfiles[0],
+    pid: 0,
+    active_profile: profiles.find(p => p.id === activeId) || profiles[0] || null,
     daemon_mode: 'STRICT_DISPATCH',
     daemon_enabled: true,
     hook_type: 'includeIf.gitdir',
-    last_switch_latency_ms: 0.18,
-    total_profiles: 4,
-    total_mappings: 4,
-    total_keys: 4,
+    last_switch_latency_ms: 0,
+    total_profiles: profiles.length,
+    total_mappings: mappings.length,
+    total_keys: keys.length,
     gitconfig_path: '~/.gitconfig',
     sshconfig_path: '~/.ssh/config',
     socket_path: '~/.ssh/agent.sock'
@@ -340,7 +187,7 @@ export function SyncKeychain() {
   if (window['go']?.['main']?.['App']?.['SyncKeychain']) {
     return window['go']['main']['App']['SyncKeychain']();
   }
-  return Promise.resolve('Synchronized with system keychain & ssh-agent');
+  return Promise.resolve('Synchronized local keychain');
 }
 
 export function FlushInactiveKeys() {

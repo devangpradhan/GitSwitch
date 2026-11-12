@@ -4,10 +4,12 @@ import { GetProfiles, SaveProfile as apiSaveProfile, DeleteProfile as apiDeleteP
 import { loadFolderMappings } from './mappings';
 import { loadSSHKeys } from './ssh';
 
+import { loadAppStatus } from './status';
+
 export const profiles = writable<Profile[]>([]);
-export const activeProfileId = writable<string>('work');
+export const activeProfileId = writable<string>('');
 export const isSwitching = writable<boolean>(false);
-export const switchLatency = writable<number>(0.18);
+export const switchLatency = writable<number>(0);
 export const switchMessage = writable<string>('');
 
 export const activeProfile = derived(
@@ -35,7 +37,7 @@ export async function switchProfile(profileId: string) {
     activeProfileId.set(res.profile_id);
     switchLatency.set(res.latency_ms);
     switchMessage.set(res.message);
-    await Promise.all([loadProfiles(), loadFolderMappings(), loadSSHKeys()]);
+    await Promise.all([loadProfiles(), loadFolderMappings(), loadSSHKeys(), loadAppStatus()]);
     return res;
   } catch (err) {
     console.error('Failed to switch profile:', err);
@@ -50,7 +52,7 @@ export async function switchProfile(profileId: string) {
 export async function saveProfile(profile: Profile) {
   try {
     await apiSaveProfile(profile);
-    await Promise.all([loadProfiles(), loadFolderMappings(), loadSSHKeys()]);
+    await Promise.all([loadProfiles(), loadFolderMappings(), loadSSHKeys(), loadAppStatus()]);
   } catch (err) {
     console.error('Failed to save profile:', err);
     throw err;
@@ -60,7 +62,7 @@ export async function saveProfile(profile: Profile) {
 export async function deleteProfile(profileId: string) {
   try {
     await apiDeleteProfile(profileId);
-    await Promise.all([loadProfiles(), loadFolderMappings(), loadSSHKeys()]);
+    await Promise.all([loadProfiles(), loadFolderMappings(), loadSSHKeys(), loadAppStatus()]);
   } catch (err) {
     console.error('Failed to delete profile:', err);
     throw err;

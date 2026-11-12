@@ -175,174 +175,22 @@ func (a *App) loadConfig() {
 		}
 	}
 
-	// Seed default prototype identities
+	// Initialize clean empty configuration on first launch
 	a.config = GitSwitchConfig{
 		Version: "1.0.0",
 		Settings: AppSettings{
-			ActiveProfileID:     "work",
+			ActiveProfileID:     "",
 			DaemonMode:          "STRICT_DISPATCH",
 			DaemonEnabled:       true,
 			HookType:            "includeIf.gitdir",
-			LastSwitchLatencyMS: 0.18,
+			LastSwitchLatencyMS: 0,
 			SyncKeychain:        true,
 			PassphraseCacheTTL:  "Session Persistent",
 			SocketPath:          "~/.ssh/agent.sock",
 		},
-		Profiles: []Profile{
-			{
-				ID:         "work",
-				Name:       "Work",
-				Username:   "rahul-corp",
-				Email:      "rahul@company.com",
-				SSHKey:     "id_ed25519_work",
-				SSHKeyPath: "~/.ssh/id_ed25519_work",
-				SigningKey: "0x9F4C2A1E",
-				ScopePaths: []string{
-					"~/Developer/Work/*",
-					"~/Projects/Client-Infra/*",
-				},
-				Color:    "#3fb950",
-				Tag:      "corp-id",
-				Shortcut: "⌘1",
-			},
-			{
-				ID:         "personal",
-				Name:       "Personal",
-				Username:   "rahulcodes",
-				Email:      "rahul.personal@gmail.com",
-				SSHKey:     "id_rsa_personal",
-				SSHKeyPath: "~/.ssh/id_rsa_personal",
-				ScopePaths: []string{
-					"~/Developer/Personal/*",
-					"~/Sideprojects/*",
-				},
-				Color:    "#6366f1",
-				Tag:      "personal",
-				Shortcut: "⌘2",
-			},
-			{
-				ID:         "client",
-				Name:       "Client / Freelance",
-				Username:   "alex-consulting",
-				Email:      "alex@freelance-studio.dev",
-				SSHKey:     "id_ed25519_client",
-				SSHKeyPath: "~/.ssh/id_ed25519_client",
-				SigningKey: "0x7B28C39F",
-				ScopePaths: []string{
-					"~/Developer/Freelance/*",
-					"~/Clients/*",
-				},
-				Color:    "#38bdf8",
-				Tag:      "agency-dev",
-				Shortcut: "⌘3",
-			},
-			{
-				ID:         "enterprise",
-				Name:       "Enterprise Bot",
-				Username:   "bastion-bot",
-				Email:      "bot@corp-bastion.internal",
-				SSHKey:     "id_ed25519_oss",
-				SSHKeyPath: "~/.ssh/id_ed25519_oss",
-				ScopePaths: []string{
-					"~/Enterprise/Infra/*",
-				},
-				Color:    "#bc8cff",
-				Tag:      "bastion-bot",
-				Shortcut: "⌘4",
-			},
-		},
-		FolderMappings: []FolderMapping{
-			{
-				ID:          "work-dev",
-				PathPattern: "~/Developer/Work/*",
-				ProfileID:   "work",
-				ProfileName: "Work",
-				IsActive:    true,
-				SSHKey:      "id_ed25519_work (256b ed25519)",
-			},
-			{
-				ID:          "work-infra",
-				PathPattern: "~/Projects/Client-Infra/*",
-				ProfileID:   "work",
-				ProfileName: "Work",
-				IsActive:    true,
-				SSHKey:      "id_ed25519_work (256b ed25519)",
-			},
-			{
-				ID:          "personal-dev",
-				PathPattern: "~/Developer/Personal/*",
-				ProfileID:   "personal",
-				ProfileName: "Personal",
-				IsActive:    false,
-				SSHKey:      "id_rsa_personal (4096b rsa)",
-			},
-			{
-				ID:          "client-freelance",
-				PathPattern: "~/Developer/Freelance/*",
-				ProfileID:   "client",
-				ProfileName: "Client / Freelance",
-				IsActive:    false,
-				SSHKey:      "id_ed25519_client (256b ed25519)",
-			},
-		},
-		SSHKeys: []SSHKeyInfo{
-			{
-				Name:            "id_ed25519_work",
-				Path:            "~/.ssh/id_ed25519_work",
-				Algorithm:       "Ed25519 · 256-bit elliptic curve",
-				Fingerprint:     "SHA256:7uK2xP+8mN9vB3qQ90Zx9uJ4kLmQpWs2eRtU89wX4yZ01",
-				PublicKey:       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOrXb7y5N3PqLmK2wX9z0Y1uV4mN8pRs9tUe0q1wZ3x rahul@company.com",
-				BoundProfile:    "Work (@rahul-corp / rahul@company.com)",
-				LoadedInMemory:  true,
-				IsActiveSigning: true,
-				IsFIDO2:         true,
-				TTL:             "Session Persistent",
-				AuthsToday:      48,
-				SignedCommits:   "1,208 verified",
-			},
-			{
-				Name:            "id_rsa_personal",
-				Path:            "~/.ssh/id_rsa_personal",
-				Algorithm:       "RSA · 4096-bit (Legacy Compatible)",
-				Fingerprint:     "SHA256:d8N7xQ41pL0m589uYqZ24V31nB50pOx421k92zV88",
-				PublicKey:       "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDQ9wX2yZ01kLmQpWs2eRtU89wX4yZ01 rahul.personal@gmail.com",
-				BoundProfile:    "Personal (@rahulcodes / rahul.personal@gmail.com)",
-				LoadedInMemory:  true,
-				IsActiveSigning: false,
-				IsFIDO2:         false,
-				TTL:             "Persistent",
-				AuthsToday:      12,
-				SignedCommits:   "342 commits",
-			},
-			{
-				Name:            "id_ed25519_client",
-				Path:            "~/.ssh/id_ed25519_client",
-				Algorithm:       "Ed25519 · 256-bit elliptic curve",
-				Fingerprint:     "SHA256:8kL9v+3qJ91zX4uV4mN8pRs9tUe0q1wZ3x7uK2xP+8mN9",
-				PublicKey:       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK1mN8pRs9tUe0q1wZ3x7uK2xP+8mN9vB3qQ90Zx alex@freelance-studio.dev",
-				BoundProfile:    "Client / Freelance (@alex-consulting)",
-				LoadedInMemory:  true,
-				IsActiveSigning: false,
-				IsFIDO2:         false,
-				TTL:             "Session Persistent",
-				AuthsToday:      19,
-				SignedCommits:   "89 verified",
-			},
-			{
-				Name:            "id_ed25519_oss",
-				Path:            "~/.ssh/id_ed25519_oss",
-				Algorithm:       "Ed25519 · 256-bit Bastion Signed",
-				Fingerprint:     "SHA256:3pQ90Zx9uJ4kLmQpWs2eRtU89wX4yZ017uK2xP+8mN9vB",
-				PublicKey:       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC9x8yZ01kLmQpWs2eRtU89wX4yZ01 bot@corp-bastion.internal",
-				BoundProfile:    "Enterprise Bot (@bastion-bot)",
-				LoadedInMemory:  true,
-				IsActiveSigning: false,
-				IsFIDO2:         false,
-				TTL:             "4h remaining",
-				AuthsToday:      82,
-				SignedCommits:   "5,410 verified",
-			},
-		},
+		Profiles:       []Profile{},
+		FolderMappings: []FolderMapping{},
+		SSHKeys:        []SSHKeyInfo{},
 	}
 
 	_ = a.saveConfigLocked()
@@ -691,7 +539,7 @@ func (a *App) GetSSHKeys() ([]SSHKeyInfo, error) {
 	return a.config.SSHKeys, nil
 }
 
-// TestSSHConnection executes real or high-fidelity simulated diagnostic SSH probe
+// TestSSHConnection executes a real OpenSSH diagnostic probe against GitHub
 func (a *App) TestSSHConnection(keyName string) (SSHProbeResult, error) {
 	start := time.Now()
 	keyPath := filepath.Join(a.homeDir, ".ssh", keyName)
@@ -720,17 +568,14 @@ func (a *App) TestSSHConnection(keyName string) (SSHProbeResult, error) {
 		if strings.Contains(rawOutput, "You've successfully authenticated") || strings.Contains(rawOutput, "successfully authenticated") {
 			success = true
 			exitCode = 1
+		} else {
+			success = false
+			exitCode = 1
 		}
 	} else {
-		// High fidelity fallback probe telemetry stream
-		terminalOut.WriteString("OpenSSH_9.6p1, LibreSSL 3.3.6\n")
-		terminalOut.WriteString("debug1: Connecting to github.com [140.82.121.4] port 22.\n")
-		terminalOut.WriteString("debug1: Connection established.\n")
-		terminalOut.WriteString(fmt.Sprintf("debug1: identity file ~/.ssh/%s type 3\n", keyName))
-		terminalOut.WriteString("debug1: Host 'github.com' is known and matches the RSA/Ed25519 host key.\n")
-		terminalOut.WriteString(fmt.Sprintf("Hi %s! You have successfully authenticated, but GitHub does not provide shell access.\n", userHandle))
-		terminalOut.WriteString("debug1: Exit status 1 (GitHub expected handshake code)\n")
-		_ = err
+		success = false
+		exitCode = 255
+		terminalOut.WriteString(fmt.Sprintf("Unable to execute OpenSSH probe for ~/.ssh/%s: %v\n", keyName, err))
 	}
 
 	elapsed := time.Since(start)

@@ -626,7 +626,39 @@ mod tests {
     fn temp_engine(name: &str) -> (std::path::PathBuf, AppEngine) {
         let tmp = std::env::temp_dir().join(name);
         let _ = fs::remove_dir_all(&tmp);
-        let engine = AppEngine::new_in_dirs(tmp.join("home"), tmp.join("cfg"));
+        let mut engine = AppEngine::new_in_dirs(tmp.join("home"), tmp.join("cfg"));
+        engine
+            .save_profile(Profile {
+                id: "work".to_string(),
+                name: "Work".to_string(),
+                username: "test-work".to_string(),
+                email: "work@example.com".to_string(),
+                ssh_key: "id_ed25519_work".to_string(),
+                ssh_key_path: Some("~/.ssh/id_ed25519_work".to_string()),
+                signing_key: None,
+                scope_paths: vec!["~/Projects/Work/*".to_string()],
+                color: "#3fb950".to_string(),
+                tag: "corp-id".to_string(),
+                shortcut: Some("⌘1".to_string()),
+                custom_ssh_command: None,
+            })
+            .unwrap();
+        engine
+            .save_profile(Profile {
+                id: "personal".to_string(),
+                name: "Personal".to_string(),
+                username: "test-personal".to_string(),
+                email: "personal@example.com".to_string(),
+                ssh_key: "id_ed25519_personal".to_string(),
+                ssh_key_path: Some("~/.ssh/id_ed25519_personal".to_string()),
+                signing_key: None,
+                scope_paths: vec!["~/Projects/Personal/*".to_string()],
+                color: "#6366f1".to_string(),
+                tag: "personal".to_string(),
+                shortcut: Some("⌘2".to_string()),
+                custom_ssh_command: None,
+            })
+            .unwrap();
         (tmp, engine)
     }
 
@@ -683,7 +715,7 @@ mod tests {
             method: "tools/call".to_string(),
             params: json!({
                 "name": "validate_hook",
-                "arguments": { "path": "~/Developer/Work/api-gateway" }
+                "arguments": { "path": "~/Projects/Work/api-gateway" }
             }),
         };
         let hook_resp = handle_request_with_engine(hook_req, &mut engine).unwrap();

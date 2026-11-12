@@ -8,15 +8,10 @@ export const probeResult = writable<SSHProbeResult | null>(null);
 export const isSyncing = writable<boolean>(false);
 export const isFlushing = writable<boolean>(false);
 export const terminalLines = writable<string[]>([
-  'OpenSSH_9.6p1, LibreSSL 3.3.6',
-  'debug1: Connecting to github.com [140.82.121.4] port 22.',
-  'debug1: Connection established.',
-  'debug1: identity file ~/.ssh/id_ed25519_work type 3',
-  'Hi rahul-corp! You have successfully authenticated, but GitHub does not provide shell access.',
-  'debug1: Exit status 1 (GitHub expected handshake exit code)'
+  'Ready. Select a real SSH key in ~/.ssh/ and click "Test Connection" to run `ssh -T -i <key> git@github.com`.'
 ]);
-export const probeLatency = writable<string>('28ms');
-export const probeTime = writable<string>('0.028s');
+export const probeLatency = writable<string>('--');
+export const probeTime = writable<string>('--');
 
 export async function loadSSHKeys() {
   try {

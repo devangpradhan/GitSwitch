@@ -219,178 +219,22 @@ fn format_algorithm_label(raw_algo: &str) -> String {
     }
 }
 
-fn seed_default_config() -> GitSwitchConfig {
+fn empty_config() -> GitSwitchConfig {
     GitSwitchConfig {
         version: APP_VERSION.to_string(),
         settings: AppSettings {
-            active_profile_id: "work".to_string(),
+            active_profile_id: String::new(),
             daemon_mode: "STRICT_DISPATCH".to_string(),
             daemon_enabled: true,
             hook_type: "includeIf.gitdir".to_string(),
-            last_switch_latency_ms: 0.18,
+            last_switch_latency_ms: 0.0,
             sync_keychain: true,
             passphrase_cache_ttl: "Session Persistent".to_string(),
             socket_path: "~/.ssh/agent.sock".to_string(),
         },
-        profiles: vec![
-            Profile {
-                id: "work".to_string(),
-                name: "Work".to_string(),
-                username: "rahul-corp".to_string(),
-                email: "rahul@company.com".to_string(),
-                ssh_key: "id_ed25519_work".to_string(),
-                ssh_key_path: Some("~/.ssh/id_ed25519_work".to_string()),
-                signing_key: Some("0x9F4C2A1E".to_string()),
-                scope_paths: vec![
-                    "~/Developer/Work/*".to_string(),
-                    "~/Projects/Client-Infra/*".to_string(),
-                ],
-                color: "#3fb950".to_string(),
-                tag: "corp-id".to_string(),
-                shortcut: Some("⌘1".to_string()),
-                custom_ssh_command: None,
-            },
-            Profile {
-                id: "personal".to_string(),
-                name: "Personal".to_string(),
-                username: "rahulcodes".to_string(),
-                email: "rahul.personal@gmail.com".to_string(),
-                ssh_key: "id_rsa_personal".to_string(),
-                ssh_key_path: Some("~/.ssh/id_rsa_personal".to_string()),
-                signing_key: None,
-                scope_paths: vec![
-                    "~/Developer/Personal/*".to_string(),
-                    "~/Sideprojects/*".to_string(),
-                ],
-                color: "#6366f1".to_string(),
-                tag: "personal".to_string(),
-                shortcut: Some("⌘2".to_string()),
-                custom_ssh_command: None,
-            },
-            Profile {
-                id: "client".to_string(),
-                name: "Client / Freelance".to_string(),
-                username: "alex-consulting".to_string(),
-                email: "alex@freelance-studio.dev".to_string(),
-                ssh_key: "id_ed25519_client".to_string(),
-                ssh_key_path: Some("~/.ssh/id_ed25519_client".to_string()),
-                signing_key: Some("0x7B28C39F".to_string()),
-                scope_paths: vec![
-                    "~/Developer/Freelance/*".to_string(),
-                    "~/Clients/*".to_string(),
-                ],
-                color: "#38bdf8".to_string(),
-                tag: "agency-dev".to_string(),
-                shortcut: Some("⌘3".to_string()),
-                custom_ssh_command: None,
-            },
-            Profile {
-                id: "enterprise".to_string(),
-                name: "Enterprise Bot".to_string(),
-                username: "bastion-bot".to_string(),
-                email: "bot@corp-bastion.internal".to_string(),
-                ssh_key: "id_ed25519_oss".to_string(),
-                ssh_key_path: Some("~/.ssh/id_ed25519_oss".to_string()),
-                signing_key: None,
-                scope_paths: vec!["~/Enterprise/Infra/*".to_string()],
-                color: "#bc8cff".to_string(),
-                tag: "bastion-bot".to_string(),
-                shortcut: Some("⌘4".to_string()),
-                custom_ssh_command: None,
-            },
-        ],
-        folder_mappings: vec![
-            FolderMapping {
-                id: "work-dev".to_string(),
-                path_pattern: "~/Developer/Work/*".to_string(),
-                profile_id: "work".to_string(),
-                profile_name: "Work".to_string(),
-                is_active: true,
-                ssh_key: "id_ed25519_work (256b ed25519)".to_string(),
-            },
-            FolderMapping {
-                id: "work-infra".to_string(),
-                path_pattern: "~/Projects/Client-Infra/*".to_string(),
-                profile_id: "work".to_string(),
-                profile_name: "Work".to_string(),
-                is_active: true,
-                ssh_key: "id_ed25519_work (256b ed25519)".to_string(),
-            },
-            FolderMapping {
-                id: "personal-dev".to_string(),
-                path_pattern: "~/Developer/Personal/*".to_string(),
-                profile_id: "personal".to_string(),
-                profile_name: "Personal".to_string(),
-                is_active: false,
-                ssh_key: "id_rsa_personal (4096b rsa)".to_string(),
-            },
-            FolderMapping {
-                id: "client-freelance".to_string(),
-                path_pattern: "~/Developer/Freelance/*".to_string(),
-                profile_id: "client".to_string(),
-                profile_name: "Client / Freelance".to_string(),
-                is_active: false,
-                ssh_key: "id_ed25519_client (256b ed25519)".to_string(),
-            },
-        ],
-        ssh_keys: vec![
-            SSHKeyInfo {
-                name: "id_ed25519_work".to_string(),
-                path: "~/.ssh/id_ed25519_work".to_string(),
-                algorithm: "Ed25519 · 256-bit elliptic curve".to_string(),
-                fingerprint: "SHA256:7uK2xP+8mN9vB3qQ90Zx9uJ4kLmQpWs2eRtU89wX4yZ01".to_string(),
-                public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOrXb7y5N3PqLmK2wX9z0Y1uV4mN8pRs9tUe0q1wZ3x rahul@company.com".to_string(),
-                bound_profile: "Work (@rahul-corp / rahul@company.com)".to_string(),
-                loaded_in_memory: true,
-                is_active_signing: true,
-                is_fido2: true,
-                ttl: "Session Persistent".to_string(),
-                auths_today: 48,
-                signed_commits: "1,208 verified".to_string(),
-            },
-            SSHKeyInfo {
-                name: "id_rsa_personal".to_string(),
-                path: "~/.ssh/id_rsa_personal".to_string(),
-                algorithm: "RSA · 4096-bit (Legacy Compatible)".to_string(),
-                fingerprint: "SHA256:d8N7xQ41pL0m589uYqZ24V31nB50pOx421k92zV88".to_string(),
-                public_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQDQ9wX2yZ01kLmQpWs2eRtU89wX4yZ01 rahul.personal@gmail.com".to_string(),
-                bound_profile: "Personal (@rahulcodes / rahul.personal@gmail.com)".to_string(),
-                loaded_in_memory: true,
-                is_active_signing: false,
-                is_fido2: false,
-                ttl: "Persistent".to_string(),
-                auths_today: 12,
-                signed_commits: "342 commits".to_string(),
-            },
-            SSHKeyInfo {
-                name: "id_ed25519_client".to_string(),
-                path: "~/.ssh/id_ed25519_client".to_string(),
-                algorithm: "Ed25519 · 256-bit elliptic curve".to_string(),
-                fingerprint: "SHA256:8kL9v+3qJ91zX4uV4mN8pRs9tUe0q1wZ3x7uK2xP+8mN9".to_string(),
-                public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK1mN8pRs9tUe0q1wZ3x7uK2xP+8mN9vB3qQ90Zx alex@freelance-studio.dev".to_string(),
-                bound_profile: "Client / Freelance (@alex-consulting)".to_string(),
-                loaded_in_memory: true,
-                is_active_signing: false,
-                is_fido2: false,
-                ttl: "Session Persistent".to_string(),
-                auths_today: 19,
-                signed_commits: "89 verified".to_string(),
-            },
-            SSHKeyInfo {
-                name: "id_ed25519_oss".to_string(),
-                path: "~/.ssh/id_ed25519_oss".to_string(),
-                algorithm: "Ed25519 · 256-bit Bastion Signed".to_string(),
-                fingerprint: "SHA256:3pQ90Zx9uJ4kLmQpWs2eRtU89wX4yZ017uK2xP+8mN9vB".to_string(),
-                public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIC9x8yZ01kLmQpWs2eRtU89wX4yZ01 bot@corp-bastion.internal".to_string(),
-                bound_profile: "Enterprise Bot (@bastion-bot)".to_string(),
-                loaded_in_memory: true,
-                is_active_signing: false,
-                is_fido2: false,
-                ttl: "4h remaining".to_string(),
-                auths_today: 82,
-                signed_commits: "5,410 verified".to_string(),
-            },
-        ],
+        profiles: Vec::new(),
+        folder_mappings: Vec::new(),
+        ssh_keys: Vec::new(),
     }
 }
 
@@ -473,11 +317,13 @@ pub fn build_gitconfig_content(
             out.push_str(&format!("\tsigningkey = {}\n", sk.trim()));
         }
     }
-    out.push_str("[core]\n");
-    out.push_str(&format!(
-        "\tsshCommand = ssh -i ~/.ssh/{} -o IdentitiesOnly=yes\n",
-        target_profile.ssh_key
-    ));
+    if !target_profile.ssh_key.trim().is_empty() {
+        out.push_str("[core]\n");
+        out.push_str(&format!(
+            "\tsshCommand = ssh -i ~/.ssh/{} -o IdentitiesOnly=yes\n",
+            target_profile.ssh_key.trim()
+        ));
+    }
 
     if !cleaned_lines.is_empty() {
         out.push('\n');
@@ -497,6 +343,9 @@ pub fn build_gitconfig_content(
             let mut norm = scope.replace('\\', "/");
             if norm.ends_with("/*") {
                 norm = norm.trim_end_matches('*').to_string();
+            }
+            if !norm.ends_with('/') {
+                norm.push('/');
             }
             out.push_str(&format!("[includeIf \"gitdir:{}\"]\n", norm));
             out.push_str(&format!("\tpath = {}\n", sub_ref));
@@ -543,17 +392,25 @@ pub fn build_sshconfig_content(
         "# GitSwitch Managed Block - Start (v{})\n",
         APP_VERSION
     ));
-    out.push_str("Host github.com\n");
-    out.push_str("    HostName github.com\n");
-    out.push_str("    User git\n");
-    out.push_str(&format!("    IdentityFile ~/.ssh/{}\n", target_profile.ssh_key));
-    out.push_str("    IdentitiesOnly yes\n\n");
+    if !target_profile.ssh_key.trim().is_empty() {
+        out.push_str("Host github.com\n");
+        out.push_str("    HostName github.com\n");
+        out.push_str("    User git\n");
+        out.push_str(&format!(
+            "    IdentityFile ~/.ssh/{}\n",
+            target_profile.ssh_key.trim()
+        ));
+        out.push_str("    IdentitiesOnly yes\n\n");
+    }
 
     for p in all_profiles {
+        if p.ssh_key.trim().is_empty() {
+            continue;
+        }
         out.push_str(&format!("Host github.com-{}\n", p.id));
         out.push_str("    HostName github.com\n");
         out.push_str("    User git\n");
-        out.push_str(&format!("    IdentityFile ~/.ssh/{}\n", p.ssh_key));
+        out.push_str(&format!("    IdentityFile ~/.ssh/{}\n", p.ssh_key.trim()));
         out.push_str("    IdentitiesOnly yes\n\n");
     }
     out.push_str("# GitSwitch Managed Block - End\n");
@@ -576,12 +433,13 @@ impl AppEngine {
         let config_file = app_config_dir.join("config.json");
 
         let mut engine = Self {
-            config: seed_default_config(),
+            config: empty_config(),
             home_dir,
             config_dir: app_config_dir,
             config_file,
         };
-        engine.load_or_seed();
+        engine.load_or_init();
+        engine.scan_ssh_keys();
         engine
     }
 
@@ -592,14 +450,12 @@ impl AppEngine {
         Self::new_in_dirs(home_dir, base_config_dir)
     }
 
-    fn load_or_seed(&mut self) {
+    fn load_or_init(&mut self) {
         if let Ok(raw) = fs::read_to_string(&self.config_file) {
             if let Ok(mut parsed) = serde_json::from_str::<GitSwitchConfig>(&raw) {
-                if !parsed.profiles.is_empty() {
-                    parsed.version = APP_VERSION.to_string();
-                    self.config = parsed;
-                    return;
-                }
+                parsed.version = APP_VERSION.to_string();
+                self.config = parsed;
+                return;
             }
         }
         let _ = self.save_config();
@@ -613,6 +469,9 @@ impl AppEngine {
 
     pub fn scan_ssh_keys(&mut self) {
         let ssh_dir = self.home_dir.join(".ssh");
+        let previous_keys = std::mem::take(&mut self.config.ssh_keys);
+        let mut discovered: Vec<SSHKeyInfo> = Vec::new();
+
         if let Ok(entries) = fs::read_dir(&ssh_dir) {
             for entry in entries.flatten() {
                 let file_name = entry.file_name().to_string_lossy().to_string();
@@ -623,45 +482,45 @@ impl AppEngine {
                         if let Some((raw_algo, fp)) = compute_ssh_fingerprint(&pub_str) {
                             let algo_label = format_algorithm_label(&raw_algo);
                             let is_fido2 = raw_algo.starts_with("sk-");
-                            if let Some(existing) =
-                                self.config.ssh_keys.iter_mut().find(|k| k.name == key_base)
-                            {
-                                existing.public_key = pub_str;
-                                existing.fingerprint = fp;
-                                existing.algorithm = algo_label;
-                                existing.is_fido2 = is_fido2;
-                            } else {
-                                let bound = self
-                                    .config
-                                    .profiles
-                                    .iter()
-                                    .find(|p| p.ssh_key == key_base)
-                                    .map(|p| format!("{} (@{} / {})", p.name, p.username, p.email))
-                                    .unwrap_or_else(|| "Unbound (Host Disk)".to_string());
-                                self.config.ssh_keys.push(SSHKeyInfo {
-                                    name: key_base.clone(),
-                                    path: format!("~/.ssh/{}", key_base),
-                                    algorithm: algo_label,
-                                    fingerprint: fp,
-                                    public_key: pub_str,
-                                    bound_profile: bound,
-                                    loaded_in_memory: true,
-                                    is_active_signing: self
-                                        .config
-                                        .profiles
-                                        .iter()
-                                        .any(|p| p.id == self.config.settings.active_profile_id && p.ssh_key == key_base),
-                                    is_fido2,
-                                    ttl: "Session Persistent".to_string(),
-                                    auths_today: 0,
-                                    signed_commits: "Ready".to_string(),
-                                });
-                            }
+                            let prev = previous_keys.iter().find(|k| k.name == key_base);
+                            let bound = self
+                                .config
+                                .profiles
+                                .iter()
+                                .find(|p| p.ssh_key == key_base)
+                                .map(|p| format!("{} (@{} / {})", p.name, p.username, p.email))
+                                .unwrap_or_else(|| "Unbound (Host Disk)".to_string());
+                            let is_active_signing = self.config.profiles.iter().any(|p| {
+                                p.id == self.config.settings.active_profile_id
+                                    && p.ssh_key == key_base
+                            });
+
+                            discovered.push(SSHKeyInfo {
+                                name: key_base.clone(),
+                                path: format!("~/.ssh/{}", key_base),
+                                algorithm: algo_label,
+                                fingerprint: fp,
+                                public_key: pub_str,
+                                bound_profile: bound,
+                                loaded_in_memory: prev.map(|k| k.loaded_in_memory).unwrap_or(true),
+                                is_active_signing,
+                                is_fido2,
+                                ttl: prev
+                                    .map(|k| k.ttl.clone())
+                                    .unwrap_or_else(|| "Session Persistent".to_string()),
+                                auths_today: prev.map(|k| k.auths_today).unwrap_or(0),
+                                signed_commits: prev
+                                    .map(|k| k.signed_commits.clone())
+                                    .unwrap_or_else(|| "Ready".to_string()),
+                            });
                         }
                     }
                 }
             }
         }
+
+        discovered.sort_by(|a, b| a.name.cmp(&b.name));
+        self.config.ssh_keys = discovered;
     }
 
     pub fn switch_active_profile(&mut self, profile_id: &str) -> Result<SwitchResult, String> {
@@ -701,10 +560,12 @@ impl AppEngine {
                 ));
             }
         }
-        sub_content.push_str(&format!(
-            "[core]\n\tsshCommand = ssh -i ~/.ssh/{} -o IdentitiesOnly=yes\n",
-            target_profile.ssh_key
-        ));
+        if !target_profile.ssh_key.trim().is_empty() {
+            sub_content.push_str(&format!(
+                "[core]\n\tsshCommand = ssh -i ~/.ssh/{} -o IdentitiesOnly=yes\n",
+                target_profile.ssh_key.trim()
+            ));
+        }
         atomic_write(&sub_config_path, sub_content.as_bytes())?;
 
         // 2. Safely read, backup, and rewrite ~/.gitconfig
@@ -722,6 +583,12 @@ impl AppEngine {
         let existing_ssh = fs::read_to_string(&sshconfig_path).unwrap_or_default();
         let new_ssh = build_sshconfig_content(&existing_ssh, &target_profile, &self.config.profiles);
         atomic_write(&sshconfig_path, new_ssh.as_bytes())?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = fs::set_permissions(&ssh_dir, fs::Permissions::from_mode(0o700));
+            let _ = fs::set_permissions(&sshconfig_path, fs::Permissions::from_mode(0o600));
+        }
 
         let elapsed_ms = (start.elapsed().as_nanos() as f64) / 1_000_000.0;
         let latency_ms = round2(elapsed_ms.max(0.05));
@@ -784,10 +651,15 @@ impl AppEngine {
     }
 
     pub fn save_profile(&mut self, profile: Profile) -> Result<bool, String> {
+        let was_empty = self.config.profiles.is_empty();
         if let Some(existing) = self.config.profiles.iter_mut().find(|p| p.id == profile.id) {
             *existing = profile.clone();
         } else {
             self.config.profiles.push(profile.clone());
+        }
+
+        if was_empty || self.config.settings.active_profile_id.is_empty() {
+            self.config.settings.active_profile_id = profile.id.clone();
         }
 
         self.config
@@ -806,13 +678,7 @@ impl AppEngine {
             });
         }
 
-        for k in &mut self.config.ssh_keys {
-            if k.name == profile.ssh_key {
-                k.bound_profile =
-                    format!("{} (@{} / {})", profile.name, profile.username, profile.email);
-            }
-        }
-
+        self.scan_ssh_keys();
         self.save_config()?;
         if is_active {
             self.switch_active_profile(&profile.id)?;
@@ -821,10 +687,6 @@ impl AppEngine {
     }
 
     pub fn delete_profile(&mut self, profile_id: &str) -> Result<bool, String> {
-        if self.config.profiles.len() <= 1 {
-            return Err("Cannot delete the only remaining profile".to_string());
-        }
-
         self.config.profiles.retain(|p| p.id != profile_id);
         self.config
             .folder_mappings
@@ -834,9 +696,13 @@ impl AppEngine {
             if let Some(first_id) = self.config.profiles.first().map(|p| p.id.clone()) {
                 self.switch_active_profile(&first_id)?;
                 return Ok(true);
+            } else {
+                self.config.settings.active_profile_id.clear();
+                self.config.settings.last_switch_latency_ms = 0.0;
             }
         }
 
+        self.scan_ssh_keys();
         self.save_config()?;
         Ok(true)
     }
@@ -917,32 +783,63 @@ impl AppEngine {
 
     pub fn test_ssh_connection(&self, key_name: &str) -> SSHProbeResult {
         let start = Instant::now();
-        let key_path = self.home_dir.join(".ssh").join(key_name);
+        let trimmed_key = key_name.trim();
         let user_handle = self
             .config
             .profiles
             .iter()
-            .find(|p| p.ssh_key == key_name)
+            .find(|p| p.ssh_key == trimmed_key)
             .map(|p| p.username.clone())
-            .unwrap_or_else(|| "developer".to_string());
+            .unwrap_or_default();
 
-        if key_path.exists() {
-            let output = Command::new("ssh")
-                .args([
-                    "-Tv",
-                    "-o",
-                    "ConnectTimeout=4",
-                    "-o",
-                    "BatchMode=yes",
-                    "-o",
-                    "StrictHostKeyChecking=accept-new",
-                    "-i",
-                    &key_path.to_string_lossy(),
-                    "git@github.com",
-                ])
-                .output();
+        if trimmed_key.is_empty() {
+            return SSHProbeResult {
+                success: false,
+                key_name: trimmed_key.to_string(),
+                host: "git@github.com".to_string(),
+                username: user_handle,
+                latency_ms: 0.0,
+                terminal_output:
+                    "No SSH key selected for this profile. Add or generate an SSH key first."
+                        .to_string(),
+                exit_code: 255,
+                tls_version: "OpenSSH".to_string(),
+            };
+        }
 
-            if let Ok(out) = output {
+        let key_path = self.home_dir.join(".ssh").join(trimmed_key);
+        if !key_path.exists() {
+            return SSHProbeResult {
+                success: false,
+                key_name: trimmed_key.to_string(),
+                host: "git@github.com".to_string(),
+                username: user_handle,
+                latency_ms: (start.elapsed().as_millis() as f64).max(1.0),
+                terminal_output: format!(
+                    "Private key ~/.ssh/{} does not exist on disk.\nGenerate a keypair or select an existing key in ~/.ssh/ before running an SSH probe.",
+                    trimmed_key
+                ),
+                exit_code: 255,
+                tls_version: "OpenSSH".to_string(),
+            };
+        }
+
+        match Command::new("ssh")
+            .args([
+                "-Tv",
+                "-o",
+                "ConnectTimeout=4",
+                "-o",
+                "BatchMode=yes",
+                "-o",
+                "StrictHostKeyChecking=accept-new",
+                "-i",
+                &key_path.to_string_lossy(),
+                "git@github.com",
+            ])
+            .output()
+        {
+            Ok(out) => {
                 let stdout = String::from_utf8_lossy(&out.stdout);
                 let stderr = String::from_utf8_lossy(&out.stderr);
                 let combined = format!("{}{}", stdout, stderr);
@@ -950,9 +847,9 @@ impl AppEngine {
                 let code = out.status.code().unwrap_or(1);
                 let latency_ms = (start.elapsed().as_millis() as f64).max(1.0);
 
-                return SSHProbeResult {
+                SSHProbeResult {
                     success: authed,
-                    key_name: key_name.to_string(),
+                    key_name: trimmed_key.to_string(),
                     host: "git@github.com".to_string(),
                     username: user_handle,
                     latency_ms,
@@ -962,37 +859,19 @@ impl AppEngine {
                         combined
                     },
                     exit_code: code,
-                    tls_version: "OpenSSH / Ed25519".to_string(),
-                };
+                    tls_version: "OpenSSH".to_string(),
+                }
             }
-        }
-
-        let simulated_lines = [
-            format!(
-                "[note] Private key ~/.ssh/{} not found on disk; showing simulated diagnostic probe.",
-                key_name
-            ),
-            "OpenSSH_9.6p1, LibreSSL 3.3.6".to_string(),
-            "debug1: Connecting to github.com [140.82.121.4] port 22.".to_string(),
-            "debug1: Connection established.".to_string(),
-            format!("debug1: identity file ~/.ssh/{} type 3", key_name),
-            "debug1: Host 'github.com' is known and matches the Ed25519 host key.".to_string(),
-            format!(
-                "Hi {}! You have successfully authenticated, but GitHub does not provide shell access.",
-                user_handle
-            ),
-            "debug1: Exit status 1 (GitHub expected handshake code)".to_string(),
-        ];
-
-        SSHProbeResult {
-            success: true,
-            key_name: key_name.to_string(),
-            host: "git@github.com".to_string(),
-            username: user_handle,
-            latency_ms: 28.0,
-            terminal_output: simulated_lines.join("\n"),
-            exit_code: 1,
-            tls_version: "TLS v1.3".to_string(),
+            Err(err) => SSHProbeResult {
+                success: false,
+                key_name: trimmed_key.to_string(),
+                host: "git@github.com".to_string(),
+                username: user_handle,
+                latency_ms: (start.elapsed().as_millis() as f64).max(1.0),
+                terminal_output: format!("Failed to invoke OpenSSH client (`ssh`): {}", err),
+                exit_code: -1,
+                tls_version: "OpenSSH".to_string(),
+            },
         }
     }
 
@@ -1021,7 +900,9 @@ impl AppEngine {
 
         self.save_config()?;
         let active_id = self.config.settings.active_profile_id.clone();
-        let _ = self.switch_active_profile(&active_id);
+        if !active_id.is_empty() {
+            let _ = self.switch_active_profile(&active_id);
+        }
         Ok(true)
     }
 
@@ -1047,7 +928,9 @@ impl AppEngine {
 
         self.save_config()?;
         let active_id = self.config.settings.active_profile_id.clone();
-        let _ = self.switch_active_profile(&active_id);
+        if !active_id.is_empty() {
+            let _ = self.switch_active_profile(&active_id);
+        }
         Ok(true)
     }
 
@@ -1311,24 +1194,57 @@ pub fn run() {
 mod tests {
     use super::*;
 
+    fn sample_profiles() -> Vec<Profile> {
+        vec![
+            Profile {
+                id: "work".to_string(),
+                name: "Work".to_string(),
+                username: "example-work".to_string(),
+                email: "work@example.com".to_string(),
+                ssh_key: "id_ed25519_work".to_string(),
+                ssh_key_path: Some("~/.ssh/id_ed25519_work".to_string()),
+                signing_key: None,
+                scope_paths: vec!["~/Projects/Work/*".to_string()],
+                color: "#3fb950".to_string(),
+                tag: "corp-id".to_string(),
+                shortcut: Some("⌘1".to_string()),
+                custom_ssh_command: None,
+            },
+            Profile {
+                id: "personal".to_string(),
+                name: "Personal".to_string(),
+                username: "example-personal".to_string(),
+                email: "personal@example.com".to_string(),
+                ssh_key: "id_ed25519_personal".to_string(),
+                ssh_key_path: Some("~/.ssh/id_ed25519_personal".to_string()),
+                signing_key: None,
+                scope_paths: vec!["~/Projects/Personal/*".to_string()],
+                color: "#6366f1".to_string(),
+                tag: "personal".to_string(),
+                shortcut: Some("⌘2".to_string()),
+                custom_ssh_command: None,
+            },
+        ]
+    }
+
     #[test]
     fn preserves_user_gitconfig_directives() {
         let existing = "[alias]\n\tco = checkout\n[user]\n\tname = old\n\temail = old@example.com\n[pull]\n\trebase = true\n";
-        let profiles = seed_default_config().profiles;
+        let profiles = sample_profiles();
         let out = build_gitconfig_content(existing, &profiles[0], &profiles);
-        assert!(out.contains("name = rahul-corp"));
-        assert!(out.contains("email = rahul@company.com"));
+        assert!(out.contains("name = example-work"));
+        assert!(out.contains("email = work@example.com"));
         assert!(out.contains("[alias]\n\tco = checkout"));
         assert!(out.contains("[pull]\n\trebase = true"));
-        assert!(out.contains("[includeIf \"gitdir:~/Developer/Work/\"]"));
+        assert!(out.contains("[includeIf \"gitdir:~/Projects/Work/\"]"));
     }
 
     #[test]
     fn preserves_user_ssh_hosts() {
         let existing = "Host my-vps\n    HostName 10.0.0.5\n    User ubuntu\n";
-        let profiles = seed_default_config().profiles;
+        let profiles = sample_profiles();
         let out = build_sshconfig_content(existing, &profiles[1], &profiles);
-        assert!(out.contains("IdentityFile ~/.ssh/id_rsa_personal"));
+        assert!(out.contains("IdentityFile ~/.ssh/id_ed25519_personal"));
         assert!(out.contains("Host github.com-work"));
         assert!(out.contains("Host my-vps"));
     }
@@ -1337,8 +1253,12 @@ mod tests {
     fn validates_include_if_hook_paths() {
         let tmp = std::env::temp_dir().join("gitswitch_unit_test_engine");
         let _ = fs::remove_dir_all(&tmp);
-        let engine = AppEngine::new_in_dirs(tmp.join("home"), tmp.join("cfg"));
-        let res = engine.validate_hook("~/Developer/Work/infra-core");
+        let mut engine = AppEngine::new_in_dirs(tmp.join("home"), tmp.join("cfg"));
+        assert!(engine.config.profiles.is_empty());
+        for p in sample_profiles() {
+            engine.save_profile(p).unwrap();
+        }
+        let res = engine.validate_hook("~/Projects/Work/infra-core");
         assert!(res.matched);
         assert_eq!(res.profile.unwrap().id, "work");
         let miss = engine.validate_hook("~/Random/Unmapped/Folder");
@@ -1351,6 +1271,9 @@ mod tests {
         let tmp = std::env::temp_dir().join("gitswitch_unit_test_switch");
         let _ = fs::remove_dir_all(&tmp);
         let mut engine = AppEngine::new_in_dirs(tmp.join("home"), tmp.join("cfg"));
+        for p in sample_profiles() {
+            engine.save_profile(p).unwrap();
+        }
         let res = engine.switch_active_profile("personal").expect("switch succeeds");
         assert!(res.success);
         assert_eq!(res.profile_id, "personal");

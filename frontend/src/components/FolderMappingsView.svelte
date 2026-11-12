@@ -7,22 +7,28 @@
   import { Button, Badge, Switch, Dialog, Select } from './ui';
   import type { FolderMapping } from '../types';
 
-  let testPath = '~/Developer/Work/infra-core';
+  let testPath = '';
   let daemonStrict = true;
   let addMappingOpen = false;
 
-  let newPathPattern = '~/Projects/NewClient/*';
-  let selectedProfileId = 'work';
+  let newPathPattern = '';
+  let selectedProfileId = '';
 
   $: daemonStrict = $appStatus.daemon_mode !== 'PASSIVE_DISPATCH';
+  $: if (!selectedProfileId && $profiles.length > 0) {
+    selectedProfileId = $profiles[0].id;
+  }
 
   async function handleToggleDaemon(e: CustomEvent<boolean>) {
     await SetDaemonMode(e.detail);
     await loadAppStatus();
   }
 
-  onMount(() => {
-    loadFolderMappings();
+  onMount(async () => {
+    const mappings = await loadFolderMappings();
+    if (!testPath && mappings.length > 0) {
+      testPath = mappings[0].path_pattern.replace(/\*$/, 'sample-repo');
+    }
     handleValidate();
   });
 
@@ -44,6 +50,7 @@
   async function handleCreateMapping() {
     if (!newPathPattern.trim()) return;
     const p = $profiles.find(x => x.id === selectedProfileId) || $profiles[0];
+    if (!p) return;
     const newMapping: FolderMapping = {
       id: `map-${Date.now()}`,
       path_pattern: newPathPattern.trim(),
@@ -53,6 +60,7 @@
       ssh_key: p.ssh_key,
     };
     await saveFolderMapping(newMapping);
+    newPathPattern = '';
     addMappingOpen = false;
     handleValidate();
   }
@@ -101,7 +109,7 @@
         type="text" 
         bind:value={testPath}
         on:input={handleValidate}
-        placeholder="Enter path to test includeIf matching (e.g. ~/Developer/Work/repo)"
+        placeholder="Enter path to test includeIf matching (e.g. ~/Projects/Work/repo)"
         class="bg-transparent border-b border-transparent hover:border-[#2a3c50] focus:border-[#3fb950] text-slate-100 px-1 py-0.5 flex-1 focus:outline-none transition-colors"
       />
     </div>
@@ -146,6 +154,18 @@
     </div>
 
     <div class="flex flex-col gap-2">
+      {#if $folderMappings.length === 0}
+        <div class="bg-[#0d141e] border border-dashed border-[#233547] rounded-xl p-8 text-center space-y-2 font-mono">
+          <div class="text-sm text-slate-300 font-semibold">No Folder Mappings Configured</div>
+          <p class="text-xs text-slate-400 font-sans max-w-md mx-auto">
+            {#if $profiles.length === 0}
+              Create a GitHub identity profile first, then bind local project directories to switch automatically via <code class="text-[#3fb950]">includeIf.gitdir</code>.
+            {:else}
+              Click <span class="text-[#3fb950]">+ Add Path</span> to bind a directory pattern (e.g. <code class="text-slate-200">~/Projects/Work/*</code>) to one of your profiles.
+            {/if}
+          </p>
+        </div>
+      {/if}
       {#each $folderMappings as mapping}
         {@const isCurrentMatch = $currentValidation?.matched_pattern === mapping.path_pattern}
         <div 

@@ -1,4 +1,10 @@
-/target
+/target/
 src-tauri/target/
 frontend/node_modules/
+frontend/dist/
+release/
 *.tmp
+*.bak
+*.gitswitch.bak
+.DS_Store
+Thumbs.db

@@ -1,0 +1,149 @@
+name: Release GitSwitch
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish-release:
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            os_id: windows-x64
+            tauri_args: --target x86_64-pc-windows-msvc
+            rust_targets: x86_64-pc-windows-msvc
+          - platform: macos-latest
+            os_id: macos-universal
+            tauri_args: --target universal-apple-darwin
+            rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
+          - platform: ubuntu-22.04
+            os_id: linux-x64
+            tauri_args: --target x86_64-unknown-linux-gnu
+            rust_targets: x86_64-unknown-linux-gnu
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux system dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_targets }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build Tauri installers (.msi, .exe, .dmg, .AppImage, .deb) and upload
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: .
+          tagName: v__VERSION__
+          releaseName: 'GitSwitch v__VERSION__'
+          releaseBody: |
+            ### GitSwitch v__VERSION__
+
+            Offline-first desktop utility and MCP server for managing multiple GitHub identities, SSH keys, and automatic `includeIf.gitdir` folder switching.
+
+            #### Downloads
+            - **Windows (x64)**: `.msi` / `-setup.exe` installer, portable `.zip`, standalone `gitswitch` & `gitswitch-mcp`
+            - **macOS (Apple Silicon & Intel Universal)**: `.dmg` disk image, portable `.tar.gz`, standalone `gitswitch-mcp`
+            - **Linux (x64)**: `.AppImage` / `.deb` / `.rpm` packages, portable `.tar.gz`, standalone `gitswitch-mcp`
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.tauri_args }}
+
+      - name: Resolve version metadata
+        id: meta
+        shell: bash
+        run: |
+          VER=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VER" >> "$GITHUB_OUTPUT"
+
+      - name: Package portable & MCP assets (Windows x64)
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          cargo build --release --target x86_64-pc-windows-msvc --bin gitswitch-mcp --manifest-path src-tauri/Cargo.toml
+          Copy-Item "src-tauri/target/x86_64-pc-windows-msvc/release/gitswitch.exe" "src-tauri/target/release/gitswitch.exe" -Force
+          Copy-Item "src-tauri/target/x86_64-pc-windows-msvc/release/gitswitch-mcp.exe" "src-tauri/target/release/gitswitch-mcp.exe" -Force
+          ./scripts/package-release.ps1 -Version "${{ steps.meta.outputs.version }}" -SkipBuild
+
+      - name: Package portable & MCP assets (macOS Universal)
+        if: matrix.platform == 'macos-latest'
+        shell: bash
+        run: |
+          VER="${{ steps.meta.outputs.version }}"
+          TAG="v$VER"
+          cargo build --release --target aarch64-apple-darwin --bin gitswitch-mcp --manifest-path src-tauri/Cargo.toml
+          cargo build --release --target x86_64-apple-darwin --bin gitswitch-mcp --manifest-path src-tauri/Cargo.toml
+          OUT="release/$TAG"
+          BUNDLE="$OUT/GitSwitch-$TAG-macos-universal"
+          mkdir -p "$BUNDLE"
+          lipo -create \
+            src-tauri/target/aarch64-apple-darwin/release/gitswitch-mcp \
+            src-tauri/target/x86_64-apple-darwin/release/gitswitch-mcp \
+            -output "$OUT/gitswitch-mcp-$TAG-macos-universal"
+          chmod +x "$OUT/gitswitch-mcp-$TAG-macos-universal"
+          cp "$OUT/gitswitch-mcp-$TAG-macos-universal" "$BUNDLE/gitswitch-mcp"
+          cp -R src-tauri/target/universal-apple-darwin/release/bundle/macos/GitSwitch.app "$BUNDLE/GitSwitch.app"
+          cp mcp_config.json README.md CHANGELOG.md LICENSE "$BUNDLE/"
+          tar -czf "$OUT/GitSwitch-$TAG-macos-universal.tar.gz" -C "$OUT" "GitSwitch-$TAG-macos-universal"
+
+      - name: Package portable & MCP assets (Linux x64)
+        if: matrix.platform == 'ubuntu-22.04'
+        shell: bash
+        run: |
+          VER="${{ steps.meta.outputs.version }}"
+          TAG="v$VER"
+          cargo build --release --target x86_64-unknown-linux-gnu --bin gitswitch-mcp --manifest-path src-tauri/Cargo.toml
+          OUT="release/$TAG"
+          BUNDLE="$OUT/GitSwitch-$TAG-linux-x64"
+          mkdir -p "$BUNDLE"
+          cp src-tauri/target/x86_64-unknown-linux-gnu/release/gitswitch "$BUNDLE/gitswitch"
+          cp src-tauri/target/x86_64-unknown-linux-gnu/release/gitswitch-mcp "$OUT/gitswitch-mcp-$TAG-linux-x64"
+          cp "$OUT/gitswitch-mcp-$TAG-linux-x64" "$BUNDLE/gitswitch-mcp"
+          chmod +x "$BUNDLE/gitswitch" "$BUNDLE/gitswitch-mcp" "$OUT/gitswitch-mcp-$TAG-linux-x64"
+          cp mcp_config.json README.md CHANGELOG.md LICENSE "$BUNDLE/"
+          tar -czf "$OUT/GitSwitch-$TAG-linux-x64.tar.gz" -C "$OUT" "GitSwitch-$TAG-linux-x64"
+
+      - name: Upload portable archives & MCP binaries to GitHub Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          files: |
+            release/${{ steps.meta.outputs.tag }}/*.zip
+            release/${{ steps.meta.outputs.tag }}/*.tar.gz
+            release/${{ steps.meta.outputs.tag }}/gitswitch-v*-windows-x64.exe
+            release/${{ steps.meta.outputs.tag }}/gitswitch-mcp-*

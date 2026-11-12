@@ -1,126 +1,177 @@
-# GitSwitch (v1.0.0) ⚡
+# GitSwitch (v1.0.0)
 
-> **Precision Offline-First Desktop Utility for Managing Multiple GitHub Accounts, Cryptographic SSH Identities, and Automatic Folder-Based Git Switching (`includeIf` Hooks)**
+> **Offline-first desktop utility and MCP server for managing multiple GitHub accounts, SSH identities, and automatic directory-based Git configuration switching (`includeIf.gitdir`).**
 
----
-
-## 🎨 Visual Aesthetic & Philosophy
-
-GitSwitch synthesizes utilitarian terminal conventions with precision-engineered developer ergonomics:
-- **Base Surfaces**: Charcoal Obsidian (`#090e15`, `#0b141c`, `#0d1117`)
-- **Neon Accents**: Active Merged Mint (`#3fb950`, `#2ea043`)
-- **Secondary Telemetry**: Branch Blue (`#38bdf8`, `#58a6ff`) & Cryptographic Violet (`#6366f1`, `#bc8cff`)
-- **Typography**: Dual-pairing of `Geist` for crisp structural hierarchy and `JetBrains Mono` / `Fira Code` for hashes, keys, and commands.
+![GitSwitch Dashboard](docs/screenshots/dashboard.png)
 
 ---
 
-## 🏗️ Architecture & Tech Stack
+## Downloads (GitHub Releases)
+
+Download the prebuilt release for your platform from the **Releases** page:
+
+- **Windows**: `GitSwitch_1.0.0_x64-setup.exe` / `.msi` installer, or portable `GitSwitch-v1.0.0-windows-x64.zip` (`gitswitch.exe` + `gitswitch-mcp.exe`)
+- **macOS**: `GitSwitch_1.0.0_aarch64.dmg`
+- **Linux**: `GitSwitch_1.0.0_amd64.AppImage` / `.deb` package
+- **MCP Server**: `gitswitch-mcp` (`gitswitch-mcp.exe` on Windows)
+
+GitSwitch launches cleanly with **zero pre-seeded or demo credentials** and automatically discovers existing public keys in `~/.ssh/*.pub`.
+
+---
+
+## How to Use GitSwitch
+
+### 1. First Launch & Adding Your First Identity (`⌘N` / `Ctrl+N`)
+1. Open GitSwitch and click **+ Add** in the top bar (or press `⌘N` / `Ctrl+N`).
+2. Enter your **Profile Identifier** (e.g., `Work`, `Personal`, or `Open Source`), **GitHub Username** (`user.name`), and **Committing Email** (`user.email`).
+3. Choose an existing key discovered from `~/.ssh/*.pub` **or** switch to **+ New Ed25519** to generate a real OpenSSH keypair (`ssh-keygen -t ed25519`) directly inside `~/.ssh/`.
+4. Optionally add comma-separated **Auto-Switch Scope Paths** (e.g., `~/Projects/Work/*`) and click **Save & Link Identity**.
+
+![Initialize New GitHub Identity Modal](docs/screenshots/add-identity-modal.png)
+
+---
+
+### 2. Switching Active Identities (`⌘1`–`⌘9` / `Ctrl+1`–`Ctrl+9`)
+- **Rotary Dial (Dashboard)**: Click any profile node around the dial or drag the central rotary knob to switch your active global Git & SSH profile.
+- **Profiles Matrix**: View all configured identities, copy or edit settings (`Config`), switch active status, or remove unused profiles.
+- **Terminal Session Override**: Click **⚡ Apply to Terminal** on the Dashboard card to copy PowerShell and POSIX/Git Bash `GIT_AUTHOR_*` / `GIT_SSH_COMMAND` export commands for overriding a single shell session.
+
+Every switch creates `.gitswitch.bak` backups (if not already present) and atomically updates:
+- `~/.gitconfig` (`[user]`, `[core] sshCommand`, and `[includeIf "gitdir:..."]` blocks while preserving your aliases & custom settings)
+- `~/.gitconfig-<profile-id>` (per-profile Git identity file)
+- `~/.ssh/config` (`Host github.com` and `Host github.com-<profile-id>` aliases while preserving other SSH hosts)
+
+![Profiles Management Matrix](docs/screenshots/profiles.png)
+
+---
+
+### 3. Automatic Folder Switching (`includeIf.gitdir`)
+Use the **Folder Mappings** tab to bind root workspace folders to specific GitHub profiles so Git automatically selects the right `user.name`, `user.email`, and SSH key whenever you work inside that directory—even without switching globally:
+1. Click **+ Add Path** and bind a pattern such as `~/Projects/Work/*` or `C:/Work/Clients/*` to a target profile.
+2. Enter any repository path in the **`pwd:` Path Resolver** bar to verify in real time which `includeIf.gitdir` rule matches.
+
+![Folder Mappings and Live PWD Probe](docs/screenshots/folder-mappings.png)
+
+---
+
+### 4. SSH Keyring & Live Connection Testing
+Use the **SSH Keys** tab to inspect and test real cryptographic keys stored in `~/.ssh/`:
+- Click **↻ Sync Keychain** to re-scan `~/.ssh/*.pub` and check `ssh-add -l`.
+- Click **+ Generate Ed25519** to create a new Ed25519 keypair in `~/.ssh/`.
+- Click **📋 Copy Public Key** (then add the `.pub` key under **GitHub → Settings → SSH and GPG keys**).
+- Click **⚡ Test Connection** to run a live `ssh -Tv -i ~/.ssh/<key> git@github.com` handshake and inspect the diagnostic output.
+
+![SSH Keys Manager](docs/screenshots/ssh-keys.png)
+
+---
+
+### 5. Inspect Generated Host Configs (`⌘,` / `Ctrl+,`)
+Press `⌘,` (`Ctrl+,`) or click the settings icon in the top-right corner to inspect and copy your live `~/.gitconfig` and `~/.ssh/config` files at any time.
+
+---
+
+### 6. Model Context Protocol (MCP) Server (`gitswitch-mcp`)
+GitSwitch ships a Stdio JSON-RPC `2.0` MCP server binary (`gitswitch-mcp`) exposing **14 tools** and **3 resources** so AI coding assistants can inspect status, switch identities, manage `includeIf` folder mappings, generate SSH keys, and test probes.
+
+Register the downloaded or compiled binary path in [mcp_config.json](mcp_config.json) (or your MCP client's config):
+
+```json
+{
+  "mcpServers": {
+    "gitswitch": {
+      "command": "/path/to/gitswitch-mcp",
+      "args": []
+    }
+  }
+}
+```
+
+- **Tools**: `get_status`, `list_profiles`, `switch_profile`, `save_profile`, `delete_profile`, `list_folder_mappings`, `save_folder_mapping`, `delete_folder_mapping`, `validate_hook`, `list_ssh_keys`, `generate_ssh_key`, `test_ssh_connection`, `get_config_files`, `apply_to_terminal`
+- **Resources**: `gitswitch://config/gitconfig`, `gitswitch://config/sshconfig`, `gitswitch://state/profiles`
+
+---
+
+## Architecture
 
 ```
 GitSwitch/
-├── wails.json                   # Wails v2 Configuration
-├── go.mod                       # Go 1.21 Module with Wails v2
-├── main.go                      # Wails Desktop Application Entrypoint (Windows Mica/Dark Options)
-├── app.go                       # Core Go Backend Engine (Direct ~/.gitconfig & ~/.ssh/config I/O)
-├── desktop-server.js            # Standalone Zero-Install Desktop Runner
-├── run-desktop.bat              # One-Click Launch Script for Windows
-└── frontend/
-    ├── package.json             # Svelte, Vite, Tailwind CSS, Bits UI
-    ├── svelte.config.js
-    ├── vite.config.ts
-    ├── tailwind.config.js
-    ├── postcss.config.js
-    ├── tsconfig.json
-    ├── dist/                    # Embedded Production Bundle (zero-dependency Wails asset server)
-    │   └── index.html
-    └── src/
-        ├── app.css              # Terminal scanlines, knurled dial styling, neon glow
-        ├── main.ts              # Svelte app entry
-        ├── App.svelte           # Unified application shell with keyboard shortcuts (⌘1, ⌘2, ⌘N, ⌘,)
-        ├── types/               # TypeScript interfaces (Profile, FolderMapping, SSHKeyInfo, etc.)
-        ├── stores/              # Reactive Svelte Stores (profiles, mappings, ssh, status)
-        ├── components/
-        │   ├── ui/              # Modular Bits UI Primitive Wrappers:
-        │   │   ├── Button.svelte
-        │   │   ├── Dialog.svelte
-        │   │   ├── Tabs.svelte
-        │   │   ├── Select.svelte
-        │   │   ├── Switch.svelte
-        │   │   ├── Badge.svelte
-        │   │   ├── Card.svelte
-        │   │   └── Separator.svelte
-        │   ├── DashboardRotary.svelte     # Screen 1: Central VST Audio Plugin Rotary Knob
-        │   ├── ProfileCard.svelte         # Screen 1: Terminal-Style Active Preview & Action Deck
-        │   ├── ProfilesView.svelte        # Screen 2: Identities Matrix & Quick Switchers
-        │   ├── Modals/
-        │   │   ├── AddProfileModal.svelte # Screen 3: Add New GitHub Identity Modal + Stream Log
-        │   │   └── ConfigViewerModal.svelte # Live Host Configuration Inspector
-        │   ├── FolderMappingsView.svelte  # Screen 4: Automatic Directory Detection & Live PWD Probe
-        │   ├── SSHKeysView.svelte         # Screen 5: Keyring Manager & Interactive Terminal Probe
-        │   └── TitleBar.svelte            # macOS-style window bullets, daemon telemetry & tabs
-        └── wailsjs/                       # Go Bindings & Runtime Bridges
+├── .github/workflows/
+│   ├── ci.yml                 # Automated Rust tests & frontend build
+│   └── release.yml            # Multi-platform GitHub Release builder
+├── docs/screenshots/          # Application screenshots for documentation
+├── scripts/
+│   ├── package-release.ps1    # Windows release packager (release/v<ver>/)
+│   └── package-release.sh     # macOS Universal & Linux release packager
+├── src-tauri/
+│   ├── Cargo.toml             # Tauri v2 + gitswitch & gitswitch-mcp binaries
+│   ├── tauri.conf.json
+│   └── src/
+│       ├── main.rs            # Desktop GUI entrypoint
+│       ├── lib.rs             # Core AppEngine & Tauri IPC commands
+│       └── bin/
+│           └── gitswitch-mcp.rs # Stdio MCP server (JSON-RPC 2.0)
+├── frontend/                  # Svelte 5 + Vite + Tailwind CSS + Bits UI
+├── mcp_config.json            # Portable MCP server configuration template
+└── run-desktop.bat            # Windows launcher script
 ```
 
 ---
 
-## ⚡ Core Screens & Features
+## Build from Source
 
-### 1. Dashboard (Rotary Dial UI)
-- **Central Rotary Knob**: VST console-style interactive metallic dial with GitHub emblem.
-- **Dynamic Circumferential Ticks**: `01. WORK`, `02. PERSONAL`, `03. CLIENT`, `04. ENTERPRISE` placed around a 240-degree arc.
-- **Interactive Switching**: Supports clicking circumferential ticks or dragging the knob with mouse to switch profiles.
-- **Active Preview Card**: Shows user handles, committing email, active SSH key, scope paths, switch latency stopwatch (`< 0.5ms`), with **"Apply to Terminal"** and **"Test Probe"** buttons.
+### Prerequisites
+- **Node.js** 20+ and **npm**
+- **Rust** toolchain (`rustup`, `cargo`)
+- **Tauri v2** platform prerequisites (WebView2 on Windows, `webkit2gtk` on Linux, Xcode CLT on macOS)
 
-### 2. Profiles Management Screen
-- Card-based layout displaying all saved profiles with green glow accent pillar on active profile.
-- Keyboard shortcuts (`⌘1`, `⌘2`, `⌘3`), active badges, bound folder scopes, and quick-switch toggles.
+### Commands
 
-### 3. Add New GitHub Account Modal
-- Bits UI Dialog form with fields:
-  - `01. Profile Identifier` (with color/tag picker)
-  - `02. GitHub Username` (`user.name`)
-  - `03. Committing Email` (`user.email`)
-  - `04. Associated SSH Key` selector (Existing keys or Generate New Ed25519 keypair) with Enclave Safe fingerprint preview.
-  - `05. Auto-Switch Scope Paths` (`gitdir:includeIf hook`)
-- **"Save & Link Identity"**: Plays smooth real-time terminal stream animation logging each step.
-
-### 4. Folder Mappings (Automatic Profile Detection)
-- Management panel for `includeIf.gitdir` hooks with `STRICT_DISPATCH` toggle.
-- **Real-Time PWD Path Resolver**: Interactive path input bar (`pwd: ~/Developer/Work/infra-core`) with live evaluation against configured workspaces.
-- Displays workspace status (`includeIf ACTIVE`, `includeIf READY`) and unlink tools.
-
-### 5. SSH Keys & Cryptographic Identities Manager
-- Agent status bar: `gittu://crypt/ssh-agent`, PID, keys in memory, TTL caching.
-- Registered key cards displaying algorithms (Ed25519 256-bit, RSA 4096-bit), SHA-256 fingerprints with one-click copy, and "Copy Public Key".
-- **Interactive Terminal Connection Test Console**: Live command echo (`$ ssh -T -i ~/.ssh/id_ed25519_work git@github.com`), OpenSSH debug output stream, and GitHub handshake greeting.
-
-### 6. Host Configuration Inspector (`⌘,`)
-- Live inspector for inspecting generated `~/.gitconfig` and `~/.ssh/config` files with syntax preservation and one-click copy.
-
----
-
-## 🚀 Running the Application
-
-### Option A: One-Click Desktop Runner (No Toolchain Required)
-Double-click `run-desktop.bat` or run:
 ```bash
-node desktop-server.js
-```
-This starts the local daemon on `http://127.0.0.1:49201` and opens Microsoft Edge in standalone App Mode (`--app`) with custom window sizing and dark theme.
+# 1. Install frontend dependencies & build UI
+cd frontend
+npm ci
+npm run build
+cd ..
 
-### Option B: Wails v2 Build
-If Go and Wails CLI are installed on your machine:
+# 2. Run Rust & MCP unit tests
+cargo test --manifest-path src-tauri/Cargo.toml
+
+# 3. Build desktop application & installer bundles
+./frontend/node_modules/.bin/tauri build
+
+# 4. Build standalone MCP server binary
+cargo build --release --bin gitswitch-mcp --manifest-path src-tauri/Cargo.toml
+```
+
+### Publishing Releases (Windows, macOS & Linux)
+
+Package a versioned local release directory (`release/v1.0.0/` + SHA-256 checksums) on each target OS:
+
+```powershell
+# Windows (x64): builds gitswitch.exe, gitswitch-mcp.exe, portable .zip, SHA256SUMS.txt
+.\scripts\package-release.ps1
+```
+
 ```bash
-# Start live development mode with hot reload
-wails dev
-
-# Build production binary (gitswitch.exe)
-wails build
+# macOS (Universal arm64 + x64) or Linux (x64 / arm64): builds installers, portable .tar.gz, gitswitch-mcp
+chmod +x scripts/package-release.sh
+./scripts/package-release.sh
 ```
+
+For automated cross-platform GitHub Releases across **Windows (`.msi`, `-setup.exe`, `.zip`)**, **macOS Universal (`.dmg`, `.tar.gz`)**, and **Linux (`.AppImage`, `.deb`, `.rpm`, `.tar.gz`)**, push a version tag (`v1.0.0`) or trigger the **Release GitSwitch** workflow in GitHub Actions:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+GitHub Actions (`.github/workflows/release.yml`) builds all three OS targets natively and attaches every installer, portable archive, and standalone `gitswitch-mcp` binary to the GitHub Release.
 
 ---
 
-## 🔒 Security & Privacy Notice
-- Private keys never leave your machine (`~/.ssh/`).
-- File updates to `~/.gitconfig` and `~/.ssh/config` are executed atomically with automatic `.bak` backups.
-- Offline-first: zero telemetry sent to external third parties.
+## Security & Privacy
+
+- Offline-first: zero external network requests or telemetry (aside from explicit `ssh -Tv git@github.com` tests you trigger).
+- No pre-seeded demo credentials or simulated SSH authentication responses.
+- Private SSH keys remain locally inside `~/.ssh/`.
+- `~/.gitconfig` and `~/.ssh/config` updates create automatic `*.gitswitch.bak` backups before writing atomically.

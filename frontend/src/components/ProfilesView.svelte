@@ -39,12 +39,12 @@
     </div>
 
     <div class="flex items-center gap-2 font-mono text-xs flex-wrap">
-      <span class="text-slate-500 text-[11px]">Runtime Hook:</span>
+      <span class="text-slate-500 text-[11px]">Engine:</span>
       <span class="bg-[#14202d] border border-[#1e2d3d] px-2 py-0.5 rounded text-[11px] text-[#3fb950]">
-        pre-commit-exec: ON
+        includeIf.gitdir: ACTIVE
       </span>
       <span class="bg-[#14202d] border border-[#1e2d3d] px-2 py-0.5 rounded text-[11px] text-[#a2c9ff]">
-        ssh-agent-sync: SYNCED
+        atomic-sync: READY
       </span>
       <Button 
         variant="primary" 
@@ -56,7 +56,20 @@
     </div>
   </div>
 
-  <!-- Profiles Cards List -->
+      <!-- Profiles Cards List -->
+  {#if $profiles.length === 0}
+    <div class="bg-[#0d141e] border border-dashed border-[#233547] rounded-xl p-8 text-center space-y-3 font-mono">
+      <div class="text-slate-300 text-sm font-semibold">No GitHub Identities Configured</div>
+      <p class="text-xs text-slate-400 font-sans max-w-md mx-auto">
+        Create your first Git identity to manage <code class="text-[#3fb950]">~/.gitconfig</code>, bind folder <code class="text-[#38bdf8]">includeIf</code> rules, and link an SSH key.
+      </p>
+      <div class="pt-1">
+        <Button variant="primary" size="sm" on:click={() => dispatch('add-identity')}>
+          <span>+ Create First Identity</span>
+        </Button>
+      </div>
+    </div>
+  {:else}
   <div class="flex flex-col gap-3">
     {#each $profiles as profile}
       {@const isActive = profile.id === $activeProfileId}
@@ -126,15 +139,13 @@
                 <span>Config</span>
               </Button>
 
-              {#if $profiles.length > 1}
-                <button 
-                  on:click={() => handleDelete(profile)}
-                  class="p-1.5 text-slate-500 hover:text-red-400 rounded hover:bg-[#1a2330] transition-colors text-xs font-mono"
-                  title="Delete profile"
-                >
-                  ✕
-                </button>
-              {/if}
+              <button 
+                on:click={() => handleDelete(profile)}
+                class="p-1.5 text-slate-500 hover:text-red-400 rounded hover:bg-[#1a2330] transition-colors text-xs font-mono"
+                title="Delete profile"
+              >
+                ✕
+              </button>
             </div>
           </div>
 
@@ -158,7 +169,7 @@
 
             <div class="md:col-span-4 flex items-center justify-start md:justify-end gap-2 flex-wrap">
               <span class="bg-[#121c26] border border-[#1e2d3e] px-2 py-0.5 rounded text-[11px] text-[#a2c9ff] flex items-center gap-1">
-                <span>🔑 {profile.ssh_key}</span>
+                <span>🔑 {profile.ssh_key || 'No SSH Key'}</span>
               </span>
               {#if profile.signing_key}
                 <span class="bg-[#121c26] border border-[#3fb950]/30 px-2 py-0.5 rounded text-[11px] text-[#3fb950] flex items-center gap-1">
@@ -180,4 +191,5 @@
       </div>
     {/each}
   </div>
+  {/if}
 </div>

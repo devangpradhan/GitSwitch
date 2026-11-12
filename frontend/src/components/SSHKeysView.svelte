@@ -2,23 +2,47 @@
   import { onMount } from 'svelte';
   import { sshKeys, loadSSHKeys, testConnection, isProbing, probeResult, terminalLines, probeLatency, probeTime, syncKeychain, isSyncing, flushInactive, isFlushing } from '../stores/ssh';
   import { activeProfile } from '../stores/profiles';
+  import { GenerateSSHKey } from '../wailsjs/go/main/App';
   import { Button, Badge } from './ui';
   import type { SSHKeyInfo } from '../types';
 
-  let currentKeyProbe = 'id_ed25519_work';
+  let currentKeyProbe = '';
   let copiedFingerprint: string | null = null;
   let copiedPublicKey: string | null = null;
   let syncSuccessMsg = '';
+  let showGenForm = false;
+  let genKeyName = 'id_ed25519_github';
+  let genEmail = '';
+  let genError = '';
+  let isGenerating = false;
 
   $: if ($probeResult?.key_name) {
     currentKeyProbe = $probeResult.key_name;
   } else if ($activeProfile?.ssh_key) {
     currentKeyProbe = $activeProfile.ssh_key;
+  } else if (!currentKeyProbe && $sshKeys.length > 0) {
+    currentKeyProbe = $sshKeys[0].name;
   }
 
   onMount(() => {
     loadSSHKeys();
   });
+
+  async function handleGenerateKey() {
+    if (!genKeyName.trim() || !genEmail.trim()) return;
+    isGenerating = true;
+    genError = '';
+    try {
+      const created = await GenerateSSHKey(genKeyName.trim(), genEmail.trim());
+      await loadSSHKeys();
+      currentKeyProbe = created.name;
+      showGenForm = false;
+    } catch (e) {
+      genError = String(e);
+    } finally {
+      isGenerating = false;
+    }
+  }
 
   async function handleCopyFingerprint(key: SSHKeyInfo) {
     await navigator.clipboard.writeText(key.fingerprint);
@@ -88,6 +112,13 @@
           <span>{syncSuccessMsg || '↻ Sync Keychain'}</span>
         </Button>
         <Button 
+          variant="primary" 
+          size="sm"
+          on:click={() => showGenForm = !showGenForm}
+        >
+          <span>{showGenForm ? '✕ Close' : '+ Generate Ed25519'}</span>
+        </Button>
+        <Button 
           variant="ghost" 
           size="sm"
           loading={$isFlushing}
@@ -97,6 +128,41 @@
         </Button>
       </div>
     </div>
+
+    {#if showGenForm}
+      <form on:submit|preventDefault={handleGenerateKey} class="relative z-10 mt-4 pt-4 border-t border-[#162230] grid grid-cols-1 md:grid-cols-12 gap-3 items-end font-mono text-xs">
+        <div class="md:col-span-4">
+          <label for="sshGenName" class="block text-[10px] text-slate-400 mb-1 uppercase">Key Filename (~/.ssh/)</label>
+          <input
+            id="sshGenName"
+            type="text"
+            bind:value={genKeyName}
+            required
+            placeholder="id_ed25519_github"
+            class="w-full px-3 py-2 rounded bg-[#070b10] border border-[#1b2636] text-slate-100 focus:outline-none focus:border-[#3fb950]"
+          />
+        </div>
+        <div class="md:col-span-5">
+          <label for="sshGenEmail" class="block text-[10px] text-slate-400 mb-1 uppercase">Key Comment Email</label>
+          <input
+            id="sshGenEmail"
+            type="email"
+            bind:value={genEmail}
+            required
+            placeholder="you@example.com"
+            class="w-full px-3 py-2 rounded bg-[#070b10] border border-[#1b2636] text-slate-100 focus:outline-none focus:border-[#3fb950]"
+          />
+        </div>
+        <div class="md:col-span-3 flex items-center gap-2">
+          <Button variant="primary" size="sm" type="submit" loading={isGenerating}>
+            <span>⚡ Create Keypair</span>
+          </Button>
+        </div>
+        {#if genError}
+          <div class="md:col-span-12 text-red-400 text-[11px]">{genError}</div>
+        {/if}
+      </form>
+    {/if}
 
     <!-- Agent Telemetry Bar Strip -->
     <div class="mt-4 pt-3 border-t border-[#162230] flex flex-wrap items-center justify-between gap-3 text-slate-400 font-mono text-[11px]">
@@ -109,13 +175,12 @@
         </div>
         <div class="flex items-center gap-1.5">
           <span class="text-slate-500">Enclave:</span>
-          <span class="text-[#a2c9ff]">Hardware Safe + FIDO2 Support</span>
+          <span class="text-[#a2c9ff]">OpenSSH ~/.ssh Keyring</span>
         </div>
       </div>
       <div class="flex items-center gap-1.5">
-        <span class="text-slate-500">Identity Switches (24h):</span>
-        <span class="text-[#3fb950] font-bold">142 OK</span>
-        <span class="text-slate-600">/ 0 ERR</span>
+        <span class="text-slate-500">Discovered keys:</span>
+        <span class="text-[#3fb950] font-bold">{$sshKeys.length} on disk</span>
       </div>
     </div>
   </div>
@@ -126,6 +191,15 @@
       <span class="uppercase tracking-wider">Configured Key Identifiers ({$sshKeys.length} registered)</span>
       <span>Isolated per Directory Context</span>
     </div>
+
+    {#if $sshKeys.length === 0}
+      <div class="bg-[#0d141e] border border-dashed border-[#233547] rounded-xl p-8 text-center space-y-2 font-mono">
+        <div class="text-sm text-slate-300 font-semibold">No SSH Public Keys Found in ~/.ssh/</div>
+        <p class="text-xs text-slate-400 font-sans max-w-md mx-auto">
+          Click <span class="text-[#3fb950]">+ Generate Ed25519</span> above to create a real Ed25519 keypair in <code class="text-[#a2c9ff]">~/.ssh/</code>, or place existing keys there and click Sync Keychain.
+        </p>
+      </div>
+    {/if}
 
     {#each $sshKeys as key}
       <div class="relative bg-[#0d141e] rounded-xl p-5 border border-[#1b2636] hover:border-[#27384b] transition-all shadow-md">
@@ -147,9 +221,9 @@
                   STANDBY GIT KEY
                 </span>
               {/if}
-              <span class="px-2 py-0.5 rounded bg-[#070b10] text-[#3fb950] text-[10px] border border-[#182330] flex items-center gap-1">
-                <span class="w-1.5 h-1.5 rounded-full bg-[#3fb950]"></span>
-                <span>Loaded in Memory</span>
+              <span class="px-2 py-0.5 rounded bg-[#070b10] text-[10px] border border-[#182330] flex items-center gap-1 {key.loaded_in_memory ? 'text-[#3fb950]' : 'text-slate-400'}">
+                <span class="w-1.5 h-1.5 rounded-full {key.loaded_in_memory ? 'bg-[#3fb950]' : 'bg-slate-500'}"></span>
+                <span>{key.loaded_in_memory ? 'Active Keyring' : 'On Disk Only'}</span>
               </span>
             </div>
 
@@ -185,11 +259,11 @@
 
             <!-- Telemetry Stats -->
             <div class="flex items-center gap-3 text-slate-500 text-[11px] pt-1">
-              <span>Auths: <strong class="text-slate-300">{key.auths_today || 12} today</strong></span>
+              <span>Auths: <strong class="text-slate-300">{key.auths_today ?? 0} today</strong></span>
               <span>·</span>
               <span>Expires: <strong class="text-slate-300">{key.ttl}</strong></span>
               <span>·</span>
-              <span>Signed commits: <strong class="text-[#3fb950]">{key.signed_commits || 'Verified'}</strong></span>
+              <span>Status: <strong class="text-[#3fb950]">{key.signed_commits || 'Ready'}</strong></span>
             </div>
           </div>
 
@@ -232,8 +306,12 @@
       </div>
 
       <div class="flex items-center gap-2 text-xs">
-        <span class="px-2.5 py-0.5 rounded bg-[#101924] border border-[#1c2a3a] text-[#3fb950] font-semibold text-[11px]">
-          {$probeLatency} · TLS v1.3 · Handshake OK (Status 1)
+        <span class="px-2.5 py-0.5 rounded bg-[#101924] border border-[#1c2a3a] font-semibold text-[11px] {$probeResult ? ($probeResult.success ? 'text-[#3fb950]' : 'text-amber-400') : 'text-slate-400'}">
+          {#if $probeResult}
+            {$probeLatency} · {$probeResult.tls_version} · {$probeResult.success ? 'Handshake OK' : `Exit ${$probeResult.exit_code}`}
+          {:else}
+            Idle · Ready to probe
+          {/if}
         </span>
         <button 
           on:click={clearTerminal}
@@ -252,7 +330,9 @@
         <span>:</span>
         <span class="text-[#38bdf8] font-bold">~/.ssh</span>
         <span class="text-[#3fb950]">$</span>
-        <span class="text-white">ssh -T -i ~/.ssh/{currentKeyProbe} git@github.com</span>
+        <span class="text-white">
+          {currentKeyProbe ? `ssh -T -i ~/.ssh/${currentKeyProbe} git@github.com` : 'ssh -T git@github.com'}
+        </span>
       </div>
 
       <div class="space-y-1 pt-1 text-[11px] text-slate-300 leading-relaxed">
